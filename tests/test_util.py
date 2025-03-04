@@ -1,6 +1,7 @@
 import datetime
 import time_machine
 import re
+import os
 import pytest
 from unittest.mock import (
     MagicMock,
@@ -56,13 +57,21 @@ def test_current_namespace():
     assert test_namespace == read_namespace
 
 
-def test_current_namespace_throws_error_when_not_in_cluster():
-    with pytest.raises(FileNotFoundError) as error:
+def test_current_namespace_use_environment_variable_if_set():
+    test_namespace = "test-namespace-env-variable"
+    os.environ['PYGEOAPI_K8S_MANAGER_NAMESPACE'] = test_namespace
+    read_namespace = current_namespace()
+    assert test_namespace == read_namespace
+    del os.environ['PYGEOAPI_K8S_MANAGER_NAMESPACE']
+
+
+def test_current_namespace_throws_error_when_not_in_cluster_and_required_environment_variable_not_set():
+    with pytest.raises(KeyError) as error:
         current_namespace()
-    assert error.type is FileNotFoundError
+    assert error.type is KeyError
     assert error.match(
         re.escape(
-            "[Errno 2] No such file or directory: '/var/run/secrets/kubernetes.io/serviceaccount/namespace'"
+            "Required environment variable \'PYGEOAPI_K8S_MANAGER_NAMESPACE\' is missing."
         )
     )
 

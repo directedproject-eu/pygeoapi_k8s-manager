@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 import re
 from typing import Optional, TypedDict
 
@@ -23,8 +24,15 @@ LOGGER = logging.getLogger(__name__)
 def current_namespace():
     # getting the current namespace like this is documented, so it should be fine:
     # https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/
-    # FIXME: works only for in-cluster set-up, hence some error handling might be useful
-    return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+    try:
+        return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+    except FileNotFoundError:
+        # if not in cluster, env should be set, so check this
+        ns_env_key = "PYGEOAPI_K8S_MANAGER_NAMESPACE"
+        if ns_env_key in os.environ:
+            return os.getenv(ns_env_key)
+        else:
+            raise KeyError(f"Required environment variable '{ns_env_key}' is missing.")
 
 _ANNOTATIONS_PREFIX = "pygeoapi.io/"
 
