@@ -1,0 +1,2 @@
+kubernetes>=30,<31
+typed_json_dataclass==1.2.1

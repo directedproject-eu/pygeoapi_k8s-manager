@@ -22,13 +22,17 @@ RUN apt-get update \
 && apt autoremove -y  \
 && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN python3 -m pip install -r requirements.txt
+WORKDIR /k8s-manager
+
+COPY requirements-docker.txt .
+RUN python3 -m pip install -r requirements-docker.txt
 
 COPY . .
-RUN python3 -m pip install .
+RUN python3 -m pip install . \
+ && rm -rv /k8s-manager
 
 ARG GIT_COMMIT
+WORKDIR /pygeoapi
 LABEL org.opencontainers.image.revision="${GIT_COMMIT}"
 
 ARG BUILD_DATE
