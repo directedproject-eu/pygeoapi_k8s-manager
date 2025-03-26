@@ -1,0 +1,6 @@
+#
+#   test requirements
+#
+pytest
+pytest-cov
+time-machine

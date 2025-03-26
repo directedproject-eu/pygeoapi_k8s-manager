@@ -27,24 +27,18 @@
 #
 # =================================================================
 import datetime
+from http import HTTPStatus
 import json
 import logging
 import os
 import re
 from typing import Optional, TypedDict
 
-from pygeoapi.util import (
-    JobStatus
-)
+from pygeoapi.util import JobStatus
+from pygeoapi.process.base import ProcessorExecuteError
+from pygeoapi.process.manager.base import DATETIME_FORMAT
 
-from pygeoapi.process.manager.base import (
-    DATETIME_FORMAT
-)
-
-from kubernetes import (
-    client as k8s_client
-)
-
+from kubernetes import client as k8s_client
 
 LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +66,7 @@ def parse_annotation_key(key: str) -> Optional[str]:
 def format_annotation_key(key: str) -> str:
     return f"{_ANNOTATIONS_PREFIX}{key}"
 
-_JOB_NAME_PREFIX = "pygeoapi-job-"
+_JOB_NAME_PREFIX = os.getenv("PYGEOAPI_K8S_MANAGER_JOB_NAME_PREFIX","pygeoapi-job-")
 
 def format_job_name(job_id: str) -> str:
     return f"{_JOB_NAME_PREFIX}{job_id}"
@@ -106,6 +100,7 @@ JobDict = TypedDict(
         "identifier": str,
         "status": str,
         "message": str,
+        "parameters": dict,
         "job_start_datetime": Optional[str],
         "job_end_datetime": Optional[str],
     },
@@ -126,3 +121,6 @@ def hide_secret_values(dictionary: dict[str, str]) -> dict[str, str]:
 
 def now_str() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime(DATETIME_FORMAT)
+
+class ProcessorClientError(ProcessorExecuteError):
+    http_status_code = HTTPStatus.BAD_REQUEST

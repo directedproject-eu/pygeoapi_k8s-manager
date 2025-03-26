@@ -28,6 +28,7 @@
 # =================================================================
 from dataclasses import dataclass
 from datetime import datetime
+from http import HTTPStatus
 import json
 import logging
 from threading import Thread
@@ -38,17 +39,20 @@ from typing import (
     cast,
 )
 
+import kubernetes
+from typed_json_dataclass import TypedJsonMixin
+
 from pygeoapi.process.manager.base import (
     BaseManager,
     BaseProcessor,
+    JobNotFoundError,
+    JobResultNotFoundError,
     DATETIME_FORMAT,
     Subscriber,
     RequestedResponse,
 )
 
-from pygeoapi.util import (
-    JobStatus,
-)
+from pygeoapi.util import JobStatus
 
 from kubernetes import (
     client as k8s_client,
@@ -73,10 +77,13 @@ K8S_ANNOTATION_KEY_JOB_START = "job-start-datetime"
 
 class KubernetesProcessor(BaseProcessor):
     @dataclass(frozen=True)
+    class RequestParameters(TypedJsonMixin):
+        message: Optional[str] = None
+        name: Optional[str] = None
+    @dataclass(frozen=True)
     class JobPodSpec:
         pod_spec: k8s_client.V1PodSpec
         extra_annotations: dict[str, str]
-        extra_labels: dict[str, str]
 
     def create_job_pod_spec(
         self,
@@ -127,10 +134,12 @@ class KubernetesManager(BaseManager):
                 k8s_config.load_incluster_config()
 
             self.namespace = current_namespace()
+            self.batch_v1 = k8s_client.BatchV1Api()
+            self.core_api = k8s_client.CoreV1Api()
         # set logging for dependencies
         if manager_def.get('logging'):
             for lib, level in manager_def.get('logging').items():
-                LOGGER.debug(f"Set log level '{level}' for library '{lib}")
+                LOGGER.debug(f"Set log level '{level}' for library '{lib}'")
                 logging.getLogger(lib).setLevel(getattr(logging, level.upper(), logging.WARNING))
 
     def add_job(self, job_metadata):
@@ -173,6 +182,7 @@ class KubernetesManager(BaseManager):
         )
 
         number_matched = len(k8s_jobs)
+        LOGGER.debug(f"Received {number_matched} jobs from cluster. Applying limit '{limit}' and offset '{offset}', if given.")
 
         # NOTE: need to paginate before expensive single job serialization
         if offset:
@@ -189,6 +199,48 @@ class KubernetesManager(BaseManager):
             "numberMatched": number_matched,
         }
 
+    def get_job(self, job_id) -> Optional[JobDict]:
+        """
+        Returns the actual output from a completed process
+
+        :param job_id: job identifier
+
+        :returns: `dict`  # `pygeoapi.process.manager.Job`
+        """
+
+        try:
+            k8s_job: k8s_client.V1Job = self.batch_v1.read_namespaced_job(
+                name=format_job_name(job_id=job_id),
+                namespace=self.namespace,
+            )
+            return job_from_k8s(k8s_job, job_message(self.namespace, k8s_job))
+        except kubernetes.client.rest.ApiException as e:
+            if e.status == HTTPStatus.NOT_FOUND:
+                raise JobNotFoundError
+            else:
+                raise
+
+    def get_job_result(self, job_id) -> tuple[Optional[Any], Optional[str]]:
+        """
+        Returns the actual output from a completed process
+
+        :param job_id: job identifier
+
+        :returns: `tuple` of mimetype and raw output
+
+        :raises: JobResultNotFoundError if job is not successful
+        """
+        job = self.get_job(job_id=job_id)
+
+        if job is None or (JobStatus[job["status"]]) != JobStatus.successful:
+            raise JobResultNotFoundError
+        else:
+            pod: k8s_client.V1Pod = pod_for_job_id(self.namespace, job["identifier"])
+            LOGGER.debug(f"metadata.name   : '{pod.metadata.name}'")
+            LOGGER.debug(f"container name  : '{pod.spec.containers[0].name}")
+            logs = k8s_client.CoreV1Api().read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace, container=pod.spec.containers[0].name)
+            LOGGER.debug(f"logs            : '{logs}'")
+            return (None, logs)
     def _execute_handler_sync(
         self,
         p: BaseProcessor, # EHJ: why BaseProcessor here, if it is passed directly into a
@@ -203,7 +255,7 @@ class KubernetesManager(BaseManager):
         Synchronous execution handler
 
         Executes job asynchronously, and checks every two seconds
-        the job status until it the job is finished, vanished, or failed.
+        the job status until the job is finished, vanished, or failed.
         Vanish is a job, if deleted from k8s without interaction of
         this manager.
 
@@ -253,6 +305,8 @@ class KubernetesManager(BaseManager):
             :returns: tuple of None (i.e. initial response payload)
                       and JobStatus.accepted (i.e. initial job status)
             """
+            if not isinstance(p, KubernetesProcessor):
+                raise NotImplementedError(f"'{type(p).__name__}' is not a KubernetesProcessor. KubernetesManager supports only KubernetesProcessor processes.")
             job_name = format_job_name(job_id=job_id)
             job_pod_spec = p.create_job_pod_spec(
                 data=data_dict,
@@ -277,7 +331,6 @@ class KubernetesManager(BaseManager):
                 ),
                 spec=k8s_client.V1JobSpec(
                     template=k8s_client.V1PodTemplateSpec(
-                        metadata=k8s_client.V1ObjectMeta(labels=job_pod_spec.extra_labels),
                         spec=job_pod_spec.pod_spec,
                     ),
                     backoff_limit=0,
@@ -294,7 +347,9 @@ class KubernetesManager(BaseManager):
 
 def get_start_time_from_job(job: k8s_client.V1Job) -> str:
     key = format_annotation_key(K8S_ANNOTATION_KEY_JOB_START)
-    return job.metadata.annotations.get(key, "")
+    start_time = job.metadata.annotations.get(key, "") if job.metadata.annotations and job.metadata.annotations.get(key) else job.metadata.creation_timestamp
+    LOGGER.debug(f"found start time: {start_time}")
+    return start_time
 
 
 def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
@@ -330,6 +385,13 @@ def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
                 )
     return None
 
+def pod_for_job_id(namespace: str, job_id: str) -> Optional[k8s_client.V1Pod]:
+    label_selector=f"job-name={format_job_name(job_id)}"
+    LOGGER.debug(f"label_selector: '{label_selector}'")
+    pods: k8s_client.V1PodList = k8s_client.CoreV1Api().list_namespaced_pod(
+        namespace=namespace, label_selector=label_selector
+    )
+    return next(iter(pods.items), None)
 
 def pod_for_job(namespace: str, job: k8s_client.V1Job) -> Optional[k8s_client.V1Pod]:
     label_selector = ",".join(
@@ -347,12 +409,15 @@ def job_from_k8s(job: k8s_client.V1Job, message: Optional[str]) -> JobDict:
     Converts k8s::job to pygeoapi::job
     """
     # annotations is broken in the k8s library, it's None when it is empty
+    LOGGER.debug("Converting k8s job to pygeoapi job")
     annotations = job.metadata.annotations or {}
+    LOGGER.debug(f"k8s job annotations: '{annotations}'")
     metadata_from_annotation = {
         parsed_key: v
         for orig_key, v in annotations.items()
         if (parsed_key := parse_annotation_key(orig_key))
     }
+    LOGGER.debug(f"extracted pygeoapi annotations: '{metadata_from_annotation}'")
 
     try:
         metadata_from_annotation["parameters"] = json.dumps(
@@ -378,6 +443,7 @@ def job_from_k8s(job: k8s_client.V1Job, message: Optional[str]) -> JobDict:
             # need this key in order not to crash, overridden by metadata:
             "identifier": "",
             "process_id": "",
+            "parameters": "",
             "job_start_datetime": start_time,
             # NOTE: this is passed as string as compatibility with base manager
             "status": status.value,
