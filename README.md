@@ -24,6 +24,20 @@ Create python venv to develop via `python -m venv --prompt pygeoapi-k8s-manager 
 We are using a kind based k8s cluster for testing.
 [Install kind following the according instructions](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
 
+## License
+
+This work is licensed in [Apache 2.0](./LICENSE).
+
+Create/Update the NOTICE file using the following command **AFTER** building the image:
+
+```shell
+docker run \
+  --rm \
+  --entrypoint "/bin/bash" \
+  swr.eu-de.otc.t-systems.com/n52/pygeoapi-k8s-manager:latest \
+  -c "pip install --no-warn-script-location --no-cache-dir pip-licenses > /dev/null && /usr/local/bin/pip-licenses -f plain | grep -v pygeoapi-k8s-manager"
+```
+
 ## Container
 
 **Build** the latest container image with docker using the following command:
