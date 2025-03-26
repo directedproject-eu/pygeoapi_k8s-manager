@@ -56,9 +56,36 @@ docker build \
   --build-arg GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
   .
 ```
+
+**Run** the image locally for testing:
+
+```shell
+docker run \
+  --env PYGEOAPI_K8S_MANAGER_NAMESPACE=dev-directed \
+  --rm \
+  --name k8s-manager \
+  -p 80:80 \
+  --volume=./pygeoapi-config.yaml:/pygeoapi/local.config.yml \
+  --volume="$HOME/.kube/:/root/.kube/" \
+  swr.eu-de.otc.t-systems.com/n52/pygeoapi-k8s-manager:latest
 ```
 
-Upload to registry after [successful login](https://docs.otc.t-systems.com/software-repository-container/umn/image_management/uploading_an_image_through_the_client.html#procedure):
+**Scan** the image for vulnerabilities
+
+```shell
+docker run -ti --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /tmp/aquasec-trivy-cache:/root/.cache/ \
+    aquasec/trivy:latest \
+    image \
+        --scanners vuln \
+        --format table \
+        --severity CRITICAL,HIGH \
+        --ignore-unfixed \
+        swr.eu-de.otc.t-systems.com/n52/pygeoapi-k8s-manager:latest
+```
+
+**Upload to registry** after [successful login](https://docs.otc.t-systems.com/software-repository-container/umn/image_management/uploading_an_image_through_the_client.html#procedure):
 
 ```shell
 docker push --all-tags swr.eu-de.otc.t-systems.com/n52/pygeoapi-k8s-manager
@@ -73,6 +100,20 @@ docker push "swr.eu-de.otc.t-systems.com/n52/pygeoapi-k8s-manager:$VERSION"
 
 ## Tests
 
+Execute the following CURL command for testing:
+
+```shell
+curl -X 'POST' \
+  'http://localhost/processes/hello-world-k8s/execution' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "inputs": {
+    "message": "Am I in TV, now?",
+    "name": "John Doe"
+  }
+}'
+```
 ## ToDos
 
 - [ ] Implement job result subscriber workflow:
