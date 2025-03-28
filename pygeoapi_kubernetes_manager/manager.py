@@ -40,7 +40,6 @@ from typing import (
 )
 
 import kubernetes
-from typed_json_dataclass import TypedJsonMixin
 
 from pygeoapi.process.manager.base import (
     BaseManager,
@@ -79,11 +78,10 @@ K8S_ANNOTATION_KEY_JOB_START = "started"
 K8S_ANNOTATION_KEY_JOB_END = "finished"
 K8S_ANNOTATION_KEY_JOB_UPDATED = "updated"
 
+
 class KubernetesProcessor(BaseProcessor):
-    @dataclass(frozen=True)
-    class RequestParameters(TypedJsonMixin):
-        message: Optional[str] = None
-        name: Optional[str] = None
+
+
     @dataclass(frozen=True)
     class JobPodSpec:
         pod_spec: k8s_client.V1PodSpec
