@@ -2,6 +2,6 @@
 # we have 1.29 - 1.31 atm
 # compare with https://github.com/kubernetes-client/python?tab=readme-ov-file#compatibility-matrix-of-supported-client-versions
 kubernetes>=30,<31
-pygeoapi==0.19.0
 
 typed_json_dataclass==1.2.1
+pygeoapi==0.20.0

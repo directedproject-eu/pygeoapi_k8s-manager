@@ -47,12 +47,14 @@ from pygeoapi.process.manager.base import (
     BaseProcessor,
     JobNotFoundError,
     JobResultNotFoundError,
-    DATETIME_FORMAT,
     Subscriber,
     RequestedResponse,
 )
 
-from pygeoapi.util import JobStatus
+from pygeoapi.util import (
+    DATETIME_FORMAT,
+    JobStatus,
+)
 
 from kubernetes import (
     client as k8s_client,
@@ -73,7 +75,9 @@ from .util import (
 
 LOGGER = logging.getLogger(__name__)
 
-K8S_ANNOTATION_KEY_JOB_START = "job-start-datetime"
+K8S_ANNOTATION_KEY_JOB_START = "started"
+K8S_ANNOTATION_KEY_JOB_END = "finished"
+K8S_ANNOTATION_KEY_JOB_UPDATED = "updated"
 
 class KubernetesProcessor(BaseProcessor):
     @dataclass(frozen=True)
@@ -316,7 +320,8 @@ class KubernetesManager(BaseManager):
             annotations = {
                 "identifier": job_id,
                 "process_id": p.metadata.get("id"),
-                "job_start_datetime": now_str(),
+                K8S_ANNOTATION_KEY_JOB_START: now_str(),
+                K8S_ANNOTATION_KEY_JOB_UPDATED: now_str(),
                 **job_pod_spec.extra_annotations,
             }
 
@@ -345,11 +350,6 @@ class KubernetesManager(BaseManager):
 
             return ("application/json", {}, JobStatus.accepted)
 
-def get_start_time_from_job(job: k8s_client.V1Job) -> str:
-    key = format_annotation_key(K8S_ANNOTATION_KEY_JOB_START)
-    start_time = job.metadata.annotations.get(key, "") if job.metadata.annotations and job.metadata.annotations.get(key) else job.metadata.creation_timestamp
-    LOGGER.debug(f"found start time: {start_time}")
-    return start_time
 
 
 def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
@@ -432,8 +432,10 @@ def job_from_k8s(job: k8s_client.V1Job, message: Optional[str]) -> JobDict:
         # TODO throw Error here?
 
     status = job_status_from_k8s(job.status)
-    completion_time = get_completion_time(job)
     start_time = get_start_time_from_job(job)
+    completion_time = get_completion_time(job)
+    completion_time = completion_time.strftime(DATETIME_FORMAT) if completion_time else None
+    updated_time = completion_time if completion_time else start_time
     # default values in case we don't get them from metadata
     default_progress = "100" if status == JobStatus.successful else "1"
 
@@ -444,18 +446,28 @@ def job_from_k8s(job: k8s_client.V1Job, message: Optional[str]) -> JobDict:
             "identifier": "",
             "process_id": "",
             "parameters": "",
-            "job_start_datetime": start_time,
+            "created": start_time,
+            K8S_ANNOTATION_KEY_JOB_START: start_time,
+            K8S_ANNOTATION_KEY_JOB_UPDATED: updated_time,
+            K8S_ANNOTATION_KEY_JOB_END: completion_time,
             # NOTE: this is passed as string as compatibility with base manager
             "status": status.value,
+            # FIXME this results in a third link to result of job in type None
             "mimetype": None,  # we don't know this in general
             "message": message if message else "",
             "progress": default_progress,
-            "job_end_datetime": (
-                completion_time.strftime(DATETIME_FORMAT) if completion_time else None
-            ),
             **metadata_from_annotation,
         },
     )
+
+
+def get_start_time_from_job(job: k8s_client.V1Job) -> str:
+    key = format_annotation_key(K8S_ANNOTATION_KEY_JOB_START)
+    # if not available via annotations, use k8s object creation time
+    start_time = job.metadata.annotations.get(key, "") if job.metadata.annotations and job.metadata.annotations.get(key) else job.metadata.creation_timestamp
+    LOGGER.debug(f"found start time: {start_time}")
+    return start_time
+    # return job.metadata.annotations.get(key, "") if job.metadata.annotations and job.metadata.annotations.get(key) else job.metadata.creation_timestamp
 
 
 def get_completion_time(job: k8s_client.V1Job) -> Optional[datetime]:

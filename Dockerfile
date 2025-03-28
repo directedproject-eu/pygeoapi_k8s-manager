@@ -1,4 +1,4 @@
-FROM geopython/pygeoapi:0.19.0
+FROM geopython/pygeoapi:0.20.0
 
 ENV VERSION=0.1
 

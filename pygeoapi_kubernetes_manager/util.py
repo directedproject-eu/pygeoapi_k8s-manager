@@ -34,9 +34,11 @@ import os
 import re
 from typing import Optional, TypedDict
 
-from pygeoapi.util import JobStatus
+from pygeoapi.util import (
+    DATETIME_FORMAT,
+    JobStatus,
+)
 from pygeoapi.process.base import ProcessorExecuteError
-from pygeoapi.process.manager.base import DATETIME_FORMAT
 
 from kubernetes import client as k8s_client
 
@@ -98,11 +100,14 @@ JobDict = TypedDict(
     "JobDict",
     {
         "identifier": str,
-        "status": str,
         "message": str,
         "parameters": dict,
-        "job_start_datetime": Optional[str],
-        "job_end_datetime": Optional[str],
+        "process_id": str,
+        "status": str,
+        "created": Optional[str],
+        "started": Optional[str],
+        "updated": Optional[str],
+        "finished": Optional[str],
     },
     total=False,
 )
