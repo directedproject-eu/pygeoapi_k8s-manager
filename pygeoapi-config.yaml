@@ -78,3 +78,69 @@ resources:
             default_image: "busybox:latest"
             command: "echo \"hello world from k8s\""
             image_pull_secret: default-secret
+    generic-image-processor-example:
+      type: process
+      processor:
+        name: pygeoapi_kubernetes_manager.process.GenericImageProcessor
+        metadata:
+          version: 0.1
+          id: generic-image-processor-example
+          title:
+            en: "Generic Image Processor Example"
+          description:
+            en: "Example Configuration of Generic Image Processor"
+          keywords:
+          - generic image processor example
+          - example
+          - generic image processor
+          - k8s
+          - k8s manager
+          - KubernetesManager
+          links:
+          - type: text/html
+            rel: about
+            title: Processor Code Repository
+            href: https://github.com/52North/pygeoapi_k8s-manager/tree/main/pygeoapi_kubernetes_manager/process/generic_image.py
+            hreflang: en-UK
+          inputs:
+            token:
+              title: secret token
+              description: identify yourself
+              schema:
+                type: string
+          outputs:
+            logs:
+              title: logs
+              description: The logs of the job
+              schema:
+                type: string
+                contentMediaType: application/json
+          example:
+            inputs:
+              token: token
+        default_image: bash:latest
+        command:
+          - bash
+          - -c
+          - 'date; env | sort'
+        env:
+          # env from secrets (requires existing secret!)
+        # - name: EXAMPLE_ENV_FROM_SECRET
+        #   secret_name: example-secret-name
+        #   secret_key: example-secret-key
+          # simple env
+        - name: SIMPLE_ENV_BOOLEAN_AS_STRING
+          value: "False"
+        - name: SIMPLE_ENV_BOOLEAN_AS_BOOLEAN
+          value: False
+        - name: SIMPLE_ENV_STRING
+          value: "simple-env-string"
+        - name: SIMPLE_ENV_INTEGER
+          value: 1024
+        resources:
+          requests:
+            memory: 16M
+            cpu: 10m
+          limits:
+            memory: 256M
+            cpu: 100m

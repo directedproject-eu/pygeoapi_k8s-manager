@@ -62,6 +62,7 @@ docker build \
 ```shell
 docker run \
   --env PYGEOAPI_K8S_MANAGER_NAMESPACE=dev-directed \
+  --env PYGEOAPI_K8S_MANAGER_API_TOKEN=token \
   --rm \
   --name k8s-manager \
   -p 80:80 \
