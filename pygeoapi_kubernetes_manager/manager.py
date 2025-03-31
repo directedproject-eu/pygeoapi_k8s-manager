@@ -451,7 +451,7 @@ def job_from_k8s(job: k8s_client.V1Job, message: Optional[str]) -> JobDict:
     return cast(
         JobDict,
         {
-            # need this key in order not to crash, overridden by metadata:
+            # need this key in order not to crash, overridden by metadata_from_annotation:
             "identifier": "",
             "process_id": "",
             "parameters": "",
