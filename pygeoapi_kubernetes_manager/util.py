@@ -68,6 +68,16 @@ def parse_annotation_key(key: str) -> Optional[str]:
 
 
 def format_annotation_key(key: str) -> str:
+    """
+    https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/#syntax-and-character-set
+
+    prefix/key: value
+
+    len(prefix) <= 253
+    len(key) <= 63
+    """
+    if len(key) > 63:
+        raise ValueError(f"Specified key '{key}' is longer than allowed API limit 63: '{len(key)}'")
     return f"{_ANNOTATIONS_PREFIX}{key}"
 
 

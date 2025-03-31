@@ -58,6 +58,13 @@ def test_format_annotation_key():
     assert format_annotation_key("test-key") == "pygeoapi.io/test-key"
 
 
+def test_format_annotation_key_raises_error_on_too_long_key():
+    with pytest.raises(ValueError) as error:
+        format_annotation_key("too-------------------------------------long-test-annotation-key")
+    assert error.type is ValueError
+    assert error.match("Specified key 'too-------------------------------------long-test-annotation-key' is longer than allowed API limit 63: '64'")
+
+
 def test_format_annotation_key_with_empty_string():
     assert format_annotation_key("") == "pygeoapi.io/"
 
