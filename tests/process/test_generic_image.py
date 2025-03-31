@@ -246,3 +246,10 @@ def test_create_job_pod_spec(processor, data):
     assert res.limits["memory"] == "test-memory-limit"
     assert res.requests["cpu"] == "test-cpu-request"
     assert res.requests["memory"] == "test-memory-request"
+
+
+def test_absence_of_image_pull_secret(processor, data):
+    processor.image_pull_secret = None
+    job_pod_spec = processor.create_job_pod_spec(data=data, job_name="test_job")
+
+    assert job_pod_spec.pod_spec.image_pull_secrets is None
