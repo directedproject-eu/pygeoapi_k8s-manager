@@ -81,6 +81,11 @@ def processor() -> GenericImageProcessor:
                         },
                     }
                 },
+                "example": {
+                    "inputs": {
+                        "name": "test-name"
+                    }
+                }
             },
             "default_image": "example-image",
             "command": "test-command",
@@ -153,6 +158,8 @@ def test_processor_def_is_parsed(processor):
     assert len(meta["keywords"]) == 2
     assert meta["keywords"][0] == "test-keyword-1"
     assert meta["keywords"][1] == "test-keyword-2"
+    assert len(meta["example"]["inputs"]) == 1
+    assert meta["example"]["inputs"]["name"] == "test-name"
 
     env = processor.env
     assert len(env) == 2
