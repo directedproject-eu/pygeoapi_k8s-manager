@@ -44,6 +44,10 @@ def processor() -> GenericImageProcessor:
                     "en": "CDS process",
                     "de": "CDS Prozess",
                 },
+                "keywords": [
+                    "test-keyword-1",
+                    "test-keyword-2",
+                ],
                 "description": {
                     "en": "english-test-description",
                     "de": "german-test-description",
@@ -146,6 +150,9 @@ def test_processor_def_is_parsed(processor):
         "description": "test-output-description",
         "schema": {"type": "object", "contentMediaType": "test-output/mimetype"},
     }
+    assert len(meta["keywords"]) == 2
+    assert meta["keywords"][0] == "test-keyword-1"
+    assert meta["keywords"][1] == "test-keyword-2"
 
     env = processor.env
     assert len(env) == 2
