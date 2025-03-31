@@ -91,6 +91,19 @@ class KubernetesProcessor(BaseProcessor):
     def __init__(self, processor_def, process_metadata):
         super().__init__(processor_def, process_metadata)
         self.mimetype = processor_def["mimetype"] if "mimetype" in processor_def else "application/json"
+        self.tolerations: list = processor_def["tolerations"] if "tolerations" in processor_def else None
+
+    def _add_tolerations(self):
+        if self.tolerations:
+            tolerations: dict[str, Any] = {
+                "tolerations": [
+                    k8s_client.V1Toleration(**toleration) for toleration in self.tolerations
+                ]
+            }
+        else:
+            tolerations = {}
+        LOGGER.debug(f"tolerations: '{tolerations}'")
+        return tolerations
 
     def create_job_pod_spec(
         self,

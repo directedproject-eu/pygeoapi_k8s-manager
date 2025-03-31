@@ -142,7 +142,6 @@ class HelloWorldK8sProcessor(KubernetesProcessor):
         self.default_image: str = processor_def["default_image"]
         self.command: str = processor_def["command"]
         self.image_pull_secret: str = processor_def["image_pull_secret"]
-        self.tolerations: list = processor_def["tolerations"] if "tolerations" in processor_def else None
 
 
     def create_job_pod_spec(self,
