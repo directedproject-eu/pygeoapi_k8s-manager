@@ -87,9 +87,9 @@ class KubernetesProcessor(BaseProcessor):
         pod_spec: k8s_client.V1PodSpec
         extra_annotations: dict[str, str]
 
+
     def __init__(self, processor_def, process_metadata):
         super().__init__(processor_def, process_metadata)
-
         self.mimetype = processor_def["mimetype"] if "mimetype" in processor_def else "application/json"
 
     def create_job_pod_spec(
@@ -109,6 +109,7 @@ class KubernetesProcessor(BaseProcessor):
         raise NotImplementedError(
             "Kubernetes Processes can't be executed directly, use KubernetesManager"
         )
+
 
 class KubernetesManager(BaseManager):
     """
@@ -248,6 +249,7 @@ class KubernetesManager(BaseManager):
             logs = k8s_client.CoreV1Api().read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace, container=pod.spec.containers[0].name)
             LOGGER.debug(f"logs            : '{logs}'")
             return (None, logs)
+
     def _execute_handler_sync(
         self,
         p: BaseProcessor, # EHJ: why BaseProcessor here, if it is passed directly into a
@@ -355,7 +357,6 @@ class KubernetesManager(BaseManager):
             return ("application/json", {}, JobStatus.accepted)
 
 
-
 def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
     if job_status_from_k8s(job.status) == JobStatus.accepted:
         # if a job is in state accepted, it means that it can run right now
@@ -389,6 +390,7 @@ def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
                 )
     return None
 
+
 def pod_for_job_id(namespace: str, job_id: str) -> Optional[k8s_client.V1Pod]:
     label_selector=f"job-name={format_job_name(job_id)}"
     LOGGER.debug(f"label_selector: '{label_selector}'")
@@ -396,6 +398,7 @@ def pod_for_job_id(namespace: str, job_id: str) -> Optional[k8s_client.V1Pod]:
         namespace=namespace, label_selector=label_selector
     )
     return next(iter(pods.items), None)
+
 
 def pod_for_job(namespace: str, job: k8s_client.V1Job) -> Optional[k8s_client.V1Pod]:
     label_selector = ",".join(

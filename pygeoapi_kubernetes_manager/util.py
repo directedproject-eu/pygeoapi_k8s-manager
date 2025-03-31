@@ -58,7 +58,9 @@ def current_namespace():
         else:
             raise KeyError(f"Required environment variable '{ns_env_key}' is missing.")
 
+
 _ANNOTATIONS_PREFIX = "pygeoapi.io/"
+
 
 def parse_annotation_key(key: str) -> Optional[str]:
     matched = re.match(f"^{_ANNOTATIONS_PREFIX}(.+)", key)
@@ -68,7 +70,9 @@ def parse_annotation_key(key: str) -> Optional[str]:
 def format_annotation_key(key: str) -> str:
     return f"{_ANNOTATIONS_PREFIX}{key}"
 
+
 _JOB_NAME_PREFIX = os.getenv("PYGEOAPI_K8S_MANAGER_JOB_NAME_PREFIX","pygeoapi-job-")
+
 
 def format_job_name(job_id: str) -> str:
     return f"{_JOB_NAME_PREFIX}{job_id}"
@@ -84,7 +88,6 @@ def job_id_from_job_name(job_name: str) -> str:
 
 def job_status_from_k8s(status: k8s_client.V1JobStatus) -> JobStatus:
     # we assume only 1 run without retries
-
     # these "integers" are None if they are 0, lol
     if status.succeeded is not None and status.succeeded > 0:
         return JobStatus.successful
@@ -114,6 +117,7 @@ JobDict = TypedDict(
 
 
 def hide_secret_values(dictionary: dict[str, str]) -> dict[str, str]:
+
     def transform_value(key, value):
         return (
             "*"
@@ -126,6 +130,7 @@ def hide_secret_values(dictionary: dict[str, str]) -> dict[str, str]:
 
 def now_str() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime(DATETIME_FORMAT)
+
 
 class ProcessorClientError(ProcessorExecuteError):
     http_status_code = HTTPStatus.BAD_REQUEST
