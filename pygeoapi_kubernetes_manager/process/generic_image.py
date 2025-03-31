@@ -138,7 +138,7 @@ class GenericImageProcessor(KubernetesProcessor):
             else:
                 k8s_env.append(V1EnvVar(
                     name=env_variable["name"],
-                    value=env_variable["value"],
+                    value=str(env_variable["value"]),
                 ))
         return k8s_env
 
@@ -164,7 +164,7 @@ class GenericImageProcessor(KubernetesProcessor):
         k8s_res = self._res_from_processor_spec()
 
         image_container = k8s_client.V1Container(
-            name=self.name,
+            name="generic-image-processor",
             image=self.default_image,
             command=self.command,
             env=k8s_env,

@@ -113,6 +113,10 @@ def processor() -> GenericImageProcessor:
                     "name": "simple_env_name",
                     "value": "simple_env_value",
                 },
+                {
+                    "name": "simple_env_boolean",
+                    "value": False,
+                }
             ],
         }
     )
@@ -163,12 +167,14 @@ def test_processor_def_is_parsed(processor):
     assert meta["example"]["inputs"]["name"] == "test-name"
 
     env = processor.env
-    assert len(env) == 2
+    assert len(env) == 3
     assert env[0]["name"] == "env_from_secret_name"
     assert env[0]["secret_name"] == "env_from_secret_secret_name"
     assert env[0]["secret_key"] == "env_from_secret_secret_key"
     assert env[1]["name"] == "simple_env_name"
     assert env[1]["value"] == "simple_env_value"
+    assert env[2]["name"] == "simple_env_boolean"
+    assert env[2]["value"] == False
 
     res = processor.resources
     assert len(res) == 2
@@ -206,7 +212,7 @@ def test_create_job_pod_spec(processor, data):
 
     annotations = spec.extra_annotations
     assert annotations["job-name"] == "test_job"
-    assert annotations["parameters"] == json.dumps(data)
+    assert annotations["parameters"] == "{\"input-str-id\": \"input-str-value\", \"input-int-id\": 42, \"input-boolean-id\": false}"
 
     assert spec.pod_spec
 
@@ -219,14 +225,18 @@ def test_create_job_pod_spec(processor, data):
     assert container.image == "example-image"
     assert len(container.command) == 1
     assert container.command[0] == "test-command"
+    assert container.name == "generic-image-processor"
 
     env = container.env
-    assert len(env) == 2
+    assert len(env) == 3
     assert env[0].name == "env_from_secret_name"
     assert env[0].value_from.secret_key_ref.name == "env_from_secret_secret_name"
     assert env[0].value_from.secret_key_ref.key == "env_from_secret_secret_key"
     assert env[1].name == "simple_env_name"
     assert env[1].value == "simple_env_value"
+    assert env[2].name == "simple_env_boolean"
+    assert env[2].value == "False"
+    assert env[2].value != False
 
     res = container.resources
     assert res

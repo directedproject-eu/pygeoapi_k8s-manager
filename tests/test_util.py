@@ -167,8 +167,9 @@ def test_hide_secret_values():
             "key": "key",
             "password": "password",
             "another-kee": "another-value",
+            "token": "token",
         }
-    ) == {"secret": "*", "key": "*", "password": "*", "another-kee": "another-value"}
+    ) == {"secret": "*", "key": "*", "password": "*", "another-kee": "another-value", "token": "*"}
 
 
 def test_now_str():
