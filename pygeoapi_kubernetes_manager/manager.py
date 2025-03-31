@@ -31,6 +31,7 @@ from datetime import datetime
 from http import HTTPStatus
 import json
 import logging
+import os
 from threading import Thread
 import time
 from typing import (
@@ -43,11 +44,15 @@ import kubernetes
 
 from pygeoapi.process.manager.base import (
     BaseManager,
+    Subscriber,
+    RequestedResponse,
+)
+
+from pygeoapi.process.base import (
     BaseProcessor,
     JobNotFoundError,
     JobResultNotFoundError,
-    Subscriber,
-    RequestedResponse,
+    ProcessorExecuteError,
 )
 
 from pygeoapi.util import (
@@ -329,6 +334,9 @@ class KubernetesManager(BaseManager):
             """
             if not isinstance(p, KubernetesProcessor):
                 raise NotImplementedError(f"'{type(p).__name__}' is not a KubernetesProcessor. KubernetesManager supports only KubernetesProcessor processes.")
+
+            self._check_auth_token(data_dict)
+
             job_name = format_job_name(job_id=job_id)
             job_pod_spec = p.create_job_pod_spec(
                 data=data_dict,
@@ -358,7 +366,7 @@ class KubernetesManager(BaseManager):
                         spec=job_pod_spec.pod_spec,
                     ),
                     backoff_limit=0,
-                    # about 3 months
+                    # about 3 months (100 days)
                     ttl_seconds_after_finished=60 * 60 * 24 * 100,
                 ),
             )
@@ -368,6 +376,16 @@ class KubernetesManager(BaseManager):
             LOGGER.info("Add job %s in ns %s", job.metadata.name, self.namespace)
 
             return ("application/json", {}, JobStatus.accepted)
+
+    def _check_auth_token(self, data_dict:dict):
+        key = "PYGEOAPI_K8S_MANAGER_API_TOKEN"
+        token = data_dict["token"]
+        if token is None:
+            raise ProcessorExecuteError('Identify yourself with valid token!')
+
+        if token != os.getenv(key, "token"):
+            LOGGER.error(f"WRONG INTERNAL API TOKEN '{token}' ('{type(token)}') != '{os.getenv(key, 'token')}' ('{type(os.getenv(key, 'token'))}')")
+            raise ProcessorExecuteError('ACCESS DENIED: wrong token')
 
 
 def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
