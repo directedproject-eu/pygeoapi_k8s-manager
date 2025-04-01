@@ -115,8 +115,22 @@ curl -X 'POST' \
   }
 }'
 ```
+
+Install test requirements in local env via:
+
+```shell
+pip install --upgrade -r requirements-dev.txt
+```
+
 ## ToDos
 
+- [x] Switch to "stable" release 0.20
+- [x] Implement env support
+- [x] Implement resource support
+- [x] Implement storage support
+- [ ] Provide inputs via env variable "to image"
 - [ ] Implement job result subscriber workflow:
-      - [updater thread](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L122-L128)
-      - [According code](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L531-L596)
+  - [updater thread](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L122-L128)
+  - [According code](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L531-L596)
+- [ ] Are Pygeoapi Start and K8s Job/POD Start Time not the same? Should they be mapped by OGC Created and Started?
+- [ ] Why are the `jobControlOptions` from hello_world_k8s and generic_image not honoured?
