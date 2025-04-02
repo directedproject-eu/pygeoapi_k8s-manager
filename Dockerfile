@@ -47,7 +47,7 @@ ARG GIT_BRANCH=branch-undefined
 ARG GIT_TAG=tag-undefined
 RUN touch "${INFO_FILE}" \
  && echo "BUILD INFO" > "$INFO_FILE" \
- && echo "timestamp: $BUILD_DATE" >> "$INFO_FILE" \
+ && echo "timestamp: $(date)" >> "$INFO_FILE" \
  && echo "git hash: $GIT_COMMIT" >> "$INFO_FILE" \
  && echo "git branch: $GIT_BRANCH" >> "$INFO_FILE" \
  && echo "git tag: $GIT_TAG" >> "$INFO_FILE" \
