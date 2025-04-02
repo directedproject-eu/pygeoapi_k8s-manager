@@ -147,5 +147,6 @@ pip install --upgrade -r requirements-dev.txt
 - [ ] Implement job result subscriber workflow:
   - [updater thread](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L122-L128)
   - [According code](https://github.com/eurodatacube/pygeoapi-kubernetes-papermill/blob/main/pygeoapi_kubernetes_papermill/kubernetes.py#L531-L596)
+- [ ] Implement injecting pod lifetime configuration, atm. 100 days too long for e.g. GPU pods
 - [ ] Are Pygeoapi Start and K8s Job/POD Start Time not the same? Should they be mapped by OGC Created and Started?
 - [ ] Why are the `jobControlOptions` from hello_world_k8s and generic_image not honoured?
