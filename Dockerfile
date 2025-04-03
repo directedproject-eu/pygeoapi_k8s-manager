@@ -25,11 +25,13 @@ RUN apt-get update \
 WORKDIR /k8s-manager
 
 COPY requirements-docker.txt .
-RUN python3 -m pip install -r requirements-docker.txt
+RUN python3 -m pip install -r requirements-docker.txt --no-cache-dir
 
 COPY . .
 RUN python3 -m pip install . \
- && rm -rv /k8s-manager
+ && rm -rv /k8s-manager \
+ && rm -rv "/usr/local/lib/python$(python3 --version 2>&1 | awk '{print $2}' | cut -d '.' -f 1,2)/dist-packages/tests" \
+ && rm -rv /root/.cache
 
 WORKDIR /pygeoapi
 
