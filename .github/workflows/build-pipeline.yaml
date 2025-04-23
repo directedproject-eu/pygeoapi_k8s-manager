@@ -73,6 +73,7 @@ jobs:
         context: "${{ env.BUILD_CONTEXT }}"
         build-args: |
            GIT_HASH=${{ github.sha }}
+           GIT_COMMIT=${{ github.sha }}
            GIT_TAG=${{ env.TAG }}
            GIT_BRANCH=${{ env.BRANCH }}
         push: ${{ github.event_name != 'pull_request' }}
