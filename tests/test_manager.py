@@ -29,6 +29,8 @@
 from unittest.mock import patch
 import pytest
 
+from pygeoapi.process.base import JobResultNotFoundError
+
 from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
@@ -271,6 +273,44 @@ def test_manager_get_jobs_limit(manager, k8s_job_list, k8s_pod_list, process_id)
     assert job_1["finished"] == "2025-01-19T15:52:01.000000Z"
     assert job_1["updated"] == job_1["finished"]
     assert job_1["mimetype"] == "application/json"
+
+
+def test_manager_get_job_result_raises_error_on_absent_pod(manager, process_id):
+    with pytest.raises(JobResultNotFoundError) as error:
+        with(
+            patch.object(KubernetesManager, "get_job", return_value={
+                "identifier": process_id,
+                "status": "successful"
+            }),
+            patch("pygeoapi_kubernetes_manager.manager.pod_for_job_id", return_value=None)
+        ):
+            manager.get_job_result(process_id)
+    assert error.type is JobResultNotFoundError
+    assert error.match(f"Pod not found for job '{process_id}'")
+
+
+@pytest.fixture
+def mocked_pod():
+    pod = MagicMock()
+    pod.metadata.name = "test-pod"
+    pod.metadata.namespace = "test-namespace"
+    pod.spec.containers = [MagicMock(name="container-1")]
+    return pod
+
+
+def test_manager_get_job_result_raises_error_on_absent_logs(manager, process_id, mocked_pod):
+    with pytest.raises(JobResultNotFoundError) as error:
+        with(
+            patch.object(KubernetesManager, "get_job", return_value={
+                "identifier": process_id,
+                "status": "successful"
+            }),
+            patch("pygeoapi_kubernetes_manager.manager.pod_for_job_id", return_value=mocked_pod),
+            patch.object(CoreV1Api, "read_namespaced_pod_log", return_value=None)
+        ):
+            manager.get_job_result(process_id)
+    assert error.type is JobResultNotFoundError
+    assert error.match(f"Could not retrieve logs for job '{process_id}'")
 
 
 def test_get_completion_time_failed_job(k8s_job_3_failed):

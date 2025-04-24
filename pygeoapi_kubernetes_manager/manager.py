@@ -263,9 +263,17 @@ class KubernetesManager(BaseManager):
         else:
             # ATM: get pod and pod logs and return them json encoded
             pod: k8s_client.V1Pod = pod_for_job_id(self.namespace, job["identifier"])
+            if pod is None:
+                msg = f"Pod not found for job '{job_id}'"
+                LOGGER.error(msg)
+                raise JobResultNotFoundError(f"Pod not found for job '{job_id}'")
             LOGGER.debug(f"metadata.name   : '{pod.metadata.name}'")
             LOGGER.debug(f"container name  : '{pod.spec.containers[0].name}")
             logs = k8s_client.CoreV1Api().read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace, container=pod.spec.containers[0].name)
+            if logs is None:
+                msg = f"Could not retrieve logs for job '{job_id}'"
+                LOGGER.error(msg)
+                raise JobResultNotFoundError(msg)
             LOGGER.debug(f"logs            : '{logs}'")
             return (None, logs)
 
