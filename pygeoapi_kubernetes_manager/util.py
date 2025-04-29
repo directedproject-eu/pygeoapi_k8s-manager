@@ -62,6 +62,10 @@ def current_namespace():
 _ANNOTATIONS_PREFIX = "pygeoapi.io/"
 
 
+def format_log_finalizer() -> str:
+    return f"{_ANNOTATIONS_PREFIX}finalizer-log-retrieval"
+
+
 def parse_annotation_key(key: str) -> Optional[str]:
     matched = re.match(f"^{_ANNOTATIONS_PREFIX}(.+)", key)
     return matched.group(1) if matched else None

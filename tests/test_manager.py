@@ -44,6 +44,7 @@ from pygeoapi_kubernetes_manager.manager import (
     get_completion_time,
     job_message,
     job_from_k8s,
+    kubernetes_finalizer_loop,
 )
 
 from pygeoapi_kubernetes_manager.util import format_job_name, format_annotation_key
@@ -497,3 +498,24 @@ def test_kubernetes_processor_sets_mimetype():
     processor = KubernetesProcessor(process_metadata={},processor_def={"name":"test-name"})
 
     assert processor.mimetype == "application/json"
+
+
+def test_manager_starts_no_thread_if_not_configured(manager):
+    with pytest.raises(AttributeError) as error:
+        manager.finalizer_controller is None
+
+    assert error.type is AttributeError
+    assert error.match("'KubernetesManager' object has no attribute 'finalizer_controller'")
+
+
+@pytest.fixture
+def manager_with_finalizer():
+    return KubernetesManager({"name": "test-manager", "mode": "test", "finalizer_controller": True})
+
+
+def test_manager_starts_thread_if_finalizer_is_configured(manager_with_finalizer):
+    assert manager_with_finalizer.finalizer_controller.is_alive()
+
+
+def test_kubernetes_finalizer_loop():
+    assert False

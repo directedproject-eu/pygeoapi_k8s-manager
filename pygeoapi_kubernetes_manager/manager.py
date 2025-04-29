@@ -32,12 +32,18 @@ from http import HTTPStatus
 import json
 import logging
 import os
+import tempfile
 from threading import Thread
 import time
 from typing import (
     Any,
     Optional,
     cast,
+)
+
+from filelock import (
+    FileLock,
+    Timeout,
 )
 
 from pygeoapi.process.manager.base import (
@@ -61,6 +67,12 @@ from pygeoapi.util import (
 from kubernetes import (
     client as k8s_client,
     config as k8s_config,
+    watch,
+)
+
+from kubernetes.client import (
+    CoreV1Api,
+    V1Pod,
 )
 
 from .util import (
@@ -68,6 +80,7 @@ from .util import (
     current_namespace,
     format_annotation_key,
     format_job_name,
+    format_log_finalizer,
     hide_secret_values,
     is_k8s_job_name,
     job_status_from_k8s,
@@ -127,6 +140,60 @@ class KubernetesProcessor(BaseProcessor):
         )
 
 
+def kubernetes_finalizer_handle_deletion_event(
+        k8s_core_api: CoreV1Api,
+        finalizer_id:str,
+        namespace: str,
+        pod: V1Pod,
+    ) -> None:
+    name = pod.metadata.name
+    LOGGER.debug(f"Handling deletion for pod: {name}")
+
+    if finalizer_id in pod.metadata.finalizers:
+        pod.metadata.finalizers.remove(finalizer_id)
+        body = {
+            "metadata": {
+                "finalizers": None if len(pod.metadata.finalizers) == 0 else pod.metadata.finalizers
+            }
+        }
+        deleted_pod, status, headers = k8s_core_api.patch_namespaced_pod_with_http_info(
+            name=name,
+            namespace=namespace,
+            body=body)
+        LOGGER.debug(f"Removed finalizer from pod '{name}' with HTTP status '{status}'")
+
+
+def kubernetes_finalizer_loop(lockfile:str, namespace:str) -> None:
+    LOGGER.debug(f"Try to get the lock of '{lockfile}'.")
+    lock = FileLock(f"{lockfile}.lock", thread_local=False)
+    try:
+        with lock.acquire(timeout=0):
+            LOGGER.debug("Got the lock.")
+            finalizer_id = format_log_finalizer()
+            k8s_core_api = k8s_client.CoreV1Api()
+            watcher = watch.Watch()
+            LOGGER.info(f"Start watching events for pods in namespace '{namespace}'.")
+            for event in watcher.stream(k8s_core_api.list_namespaced_pod, namespace=namespace):
+                pod = event['object']
+                event_type = event['type']
+                LOGGER.debug(f"Event '{event_type}' with object pod '{pod.metadata.name}' received")
+
+                if event_type not in ('ADDED', 'DELETED') and \
+                    pod.metadata.deletion_timestamp and \
+                        finalizer_id in (pod.metadata.finalizers or []):
+                    LOGGER.debug(f"Found pod '{pod.metadata.name}' to be deleted '{pod.metadata.deletion_timestamp}' with matching finalizer '{finalizer_id}'.")
+                    kubernetes_finalizer_handle_deletion_event(
+                        k8s_core_api,
+                        finalizer_id,
+                        namespace,
+                        pod,
+                    )
+            LOGGER.info(f"Finished watching events for pods in namespace '{namespace}'.")
+    except Timeout:
+        LOGGER.error("Did not get the lock, hopefully someone else will take care of the finalizer task :-(.")
+    LOGGER.info("Finished finalizer thread")
+
+
 class KubernetesManager(BaseManager):
     """
     Implements pygeoapi.process.manager.base.BaseManager and uses
@@ -165,6 +232,19 @@ class KubernetesManager(BaseManager):
             for lib, level in manager_def.get('logging').items():
                 LOGGER.debug(f"Set log level '{level}' for library '{lib}'")
                 logging.getLogger(lib).setLevel(getattr(logging, level.upper(), logging.WARNING))
+        #
+        # start finalizer controller
+        if manager_def.get('finalizer_controller'):
+            self.finalizer_controller = Thread(
+                target=kubernetes_finalizer_loop,
+                args=[
+                    os.path.join(tempfile.gettempdir(), "pygeoapi-k8s-job-manager-one-finalizer-thread"),
+                    self.namespace,
+                ],
+                # it will be killed, if it's the last thread in the application
+                daemon=True)
+            self.finalizer_controller.start()
+            LOGGER.info("Started finalizer thread")
 
     def add_job(self, job_metadata):
         # For k8s, add_job is implied by executing the job
