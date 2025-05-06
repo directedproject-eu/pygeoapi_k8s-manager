@@ -20,17 +20,17 @@ An `ProcessorExecuteError` will be raised if not given and matching.
 
 ## k8s Configuration Requirements
 
-- Required RBAC rules:
+Required RBAC rules:
 
-  ```shell
-    Resources    Non-Resource URLs  Resource Names  Verbs
-  ---------    -----------------  --------------  -----
-  jobs.batch   []                 []              [get list watch create update patch delete]
-  events       []                 []              [get watch list]
-  pods/log     []                 []              [get watch list]
-  pods/status  []                 []              [get watch list]
-  pods         []                 []              [get watch list]
-  ```
+```shell
+  Resources    Non-Resource URLs  Resource Names  Verbs
+---------    -----------------  --------------  -----
+jobs.batch   []                 []              [get list watch create update patch delete]
+events       []                 []              [get watch list]
+pods/log     []                 []              [get watch list]
+pods/status  []                 []              [get watch list]
+pods         []                 []              [get watch list]
+```
 
 See [k8s manifest examples](./k8s-manifests/) for an example set-up, that needs adjustment to your cluster.
 The set-up requires a secret `k8s-job-manager` with key `token` in the same namespace of the deployment (*here*: `default`), that could be created with the following command:
