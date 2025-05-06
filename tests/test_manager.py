@@ -26,6 +26,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 # =================================================================
+import os
 from unittest.mock import (
     MagicMock,
     patch
@@ -44,6 +45,7 @@ from pygeoapi_kubernetes_manager.manager import (
     get_completion_time,
     job_message,
     job_from_k8s,
+    check_s3_log_upload_variables,
     kubernetes_finalizer_loop,
 )
 
@@ -506,6 +508,40 @@ def test_manager_starts_no_thread_if_not_configured(manager):
 
     assert error.type is AttributeError
     assert error.match("'KubernetesManager' object has no attribute 'finalizer_controller'")
+
+
+def test_check_s3_log_upload_variables():
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT", None)
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"] = "configured"
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"] = "configured"
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME"] = "configured"
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"] = "configured"
+    assert check_s3_log_upload_variables() == False
+
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT"] = "configured"
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY", None)
+    assert check_s3_log_upload_variables() == False
+
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"] = "configured"
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET", None)
+    assert check_s3_log_upload_variables() == False
+
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"] = "configured"
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME", None)
+    assert check_s3_log_upload_variables() == False
+
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME"] = "configured"
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX", None)
+    assert check_s3_log_upload_variables() == False
+
+    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"] = "configured"
+    assert check_s3_log_upload_variables() == True
+
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT", None)
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY", None)
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET", None)
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME", None)
+    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX", None)
 
 
 @pytest.fixture

@@ -149,7 +149,7 @@ def kubernetes_finalizer_handle_deletion_event(
         finalizer_id:str,
         namespace: str,
         pod: V1Pod,
-        skip_s3_upload: bool,
+        upload_log_to_s3: bool,
     ) -> None:
     name = pod.metadata.name
     LOGGER.debug(f"Handling deletion for pod: {name}")
@@ -164,7 +164,7 @@ def kubernetes_finalizer_handle_deletion_event(
     )
     if logs is None:
         LOGGER.error(f"Could not retrieve logs for pod '{pod.name}'")
-    elif not skip_s3_upload:
+    elif upload_log_to_s3:
         LOGGER.debug("Retrieve logs from pod")
         #
         # see https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html#envvars-list-AWS_REQUEST_CHECKSUM_CALCULATION
@@ -214,7 +214,7 @@ def kubernetes_finalizer_handle_deletion_event(
 
 
 def check_s3_log_upload_variables() -> bool:
-    skip_s3_upload = False
+    upload_logs_to_s3 = True
     for key in (
         'PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT',
         'PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY',
@@ -225,10 +225,10 @@ def check_s3_log_upload_variables() -> bool:
         value = os.getenv(key=key, default=None)
         if value is None or len(value) == 0:
             LOGGER.error(f"Required environment variable '{key}' not configured correctly: '{value}'")
-            skip_s3_upload = True
-    if skip_s3_upload:
+            upload_logs_to_s3 = False
+    if not upload_logs_to_s3:
         LOGGER.info("Will skip s3 upload to log files because of bad configuration")
-    return skip_s3_upload
+    return upload_logs_to_s3
 
 
 def kubernetes_finalizer_loop(lockfile:str, namespace:str) -> None:
@@ -238,7 +238,7 @@ def kubernetes_finalizer_loop(lockfile:str, namespace:str) -> None:
         with lock.acquire(timeout=0):
             LOGGER.debug("Got the lock.")
             # check env config
-            skip_s3_upload = check_s3_log_upload_variables()
+            upload_logs_to_s3 = check_s3_log_upload_variables()
 
             finalizer_id = format_log_finalizer()
             k8s_core_api = k8s_client.CoreV1Api()
@@ -276,7 +276,7 @@ def kubernetes_finalizer_loop(lockfile:str, namespace:str) -> None:
                                     finalizer_id,
                                     namespace,
                                     pod,
-                                    skip_s3_upload,
+                                    upload_logs_to_s3,
                                 )
                             if event_type == "BOOKMARK":
                                 LOGGER.debug(f"Processing 'Bookmark'. Updating resource version: '{resource_version}' -> {pod.metadata.resource_version}'.")
