@@ -44,6 +44,7 @@ from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
     get_completion_time,
+    get_job_name_from,
     job_message,
     job_from_k8s,
     check_s3_log_upload_variables,
@@ -586,6 +587,24 @@ def test_kubernetes_finalizer_handle_deletion_event_removes_finalizer_if_no_logs
         mocked_upload_logs_to_s3.assert_not_called()
         k8s_core_api.patch_namespaced_pod_with_http_info.assert_called_once()
         assert test_pod.metadata.finalizers == ["not-my-finalizer"]
+
+
+def test_get_job_name_from_pod():
+    test_job_name = "test-job-name"
+    test_pod = V1Pod(metadata=V1ObjectMeta(labels={"job-name": test_job_name}))
+    assert get_job_name_from(test_pod) == test_job_name
+
+
+def test_get_job_name_returns_alternative_job_name():
+    test_pod = V1Pod(
+        metadata=V1ObjectMeta(),
+        status=V1PodStatus(
+            start_time=datetime.datetime(
+                1970, 1, 1, 12, 00, 0, tzinfo=datetime.timezone.utc
+            )
+        ),
+    )
+    assert get_job_name_from(test_pod) == "pygeoapi-job-00000000-0000-0000-0000-00000000a8c0"
 
 
 @pytest.fixture

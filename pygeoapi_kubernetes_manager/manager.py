@@ -33,6 +33,7 @@ import json
 import logging
 import os
 import tempfile
+import uuid
 from threading import Thread
 import time
 from typing import (
@@ -49,6 +50,7 @@ from filelock import (
 import boto3
 import boto3.session
 from botocore.exceptions import ClientError
+from botocore.client import BaseClient
 
 from kubernetes import (
     client as k8s_client,
@@ -170,22 +172,25 @@ def upload_logs_to_s3(
             "PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"
         ),
     )
-    path = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX")
-    job_name = None if not pod.metadata.labels else pod.metadata.labels["job-name"]
-    if job_name is None:
-        LOGGER.error(
-            f"Job name label not found in pod metadata: '{pod.metadata}'. Using millis of start time."
-        )
-        job_name = int(pod.status.start_time.timestamp() * 1000)
-
-    log_file_with_path = f"{path}{job_name}-logs.txt"
     bucket_name = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME")
+    log_file_with_path = get_log_file_path(s3, pod, bucket_name)
+    # 3 upload file
+    LOGGER.debug("Start writing file")
+    s3.put_object(
+        Bucket=bucket_name, Key=log_file_with_path, Body=str(logs).encode("utf-8")
+    )
+    LOGGER.info(f"Log data saved to '{log_file_with_path}'")
+
+
+def get_log_file_path(s3: BaseClient, pod: V1Pod, bucket_name: str) -> str:
+    path = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX")
+    log_file_with_path = f"{path}{get_job_name_from(pod)}-logs.txt"
     LOGGER.debug(
         f"Upload target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
     )
     try:
         s3.head_object(Bucket=bucket_name, Key=log_file_with_path)
-        log_file_with_path = f"{log_file_with_path}.duplicate.txt"
+        log_file_with_path = f"{log_file_with_path[:-4]}.duplicate.txt"
         LOGGER.debug(
             f"Upload target exists. New target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
         )
@@ -196,13 +201,17 @@ def upload_logs_to_s3(
                       bucket failed: {e}"
             )
             # TODO: How to handle this error
+    return log_file_with_path
 
-    # 3 upload file
-    LOGGER.debug("Start writing file")
-    s3.put_object(
-        Bucket=bucket_name, Key=log_file_with_path, Body=str(logs).encode("utf-8")
-    )
-    LOGGER.info(f"Log data saved to '{log_file_with_path}'")
+
+def get_job_name_from(pod: V1Pod) -> str:
+    job_name = None if not pod.metadata.labels else pod.metadata.labels.get("job-name")
+    if job_name is None:
+        LOGGER.error(
+            f"Job name label not found in pod metadata: '{pod.metadata}'. Using millis of start time."
+        )
+        job_name = f"pygeoapi-job-{uuid.UUID(int=int(pod.status.start_time.timestamp()))}"
+    return job_name
 
 
 def kubernetes_finalizer_handle_deletion_event(
