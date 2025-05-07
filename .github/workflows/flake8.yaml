@@ -13,9 +13,12 @@ jobs:
         name: Checkout Repository
         uses: actions/checkout@v4
       -
-        name: run flake8
+        name: install dependencies
         run: |
           pip3 install -r requirements.txt
           pip3 install -r requirements-dev.txt
+      -
+        name: run flake8
+        run: |
           flake8 pygeoapi_kubernetes_manager
           flake8 tests

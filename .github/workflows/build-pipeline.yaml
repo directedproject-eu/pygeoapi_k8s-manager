@@ -67,11 +67,18 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_TOKEN }}
     -
-      name: run unit tests
+      name: install requirements
       run: |
         pip3 install -r requirements.txt
         pip3 install -r requirements-dev.txt
+    -
+      name: run unit tests
+      run: |
         pytest tests/
+    -
+      name: run flake8
+      run: |
+        flake8 tests
         flake8 pygeoapi_kubernetes_manager
     -
       name: Build and push Docker image
