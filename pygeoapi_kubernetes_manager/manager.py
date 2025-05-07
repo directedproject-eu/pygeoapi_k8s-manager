@@ -150,12 +150,67 @@ class KubernetesProcessor(BaseProcessor):
         )
 
 
+def upload_logs_to_s3(
+        pod: V1Pod,
+        logs: str,
+) -> None:
+    LOGGER.debug("Retrieve logs from pod")
+    #
+    # see https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html#envvars-list-AWS_REQUEST_CHECKSUM_CALCULATION # noqa: E501
+    #
+    #
+    os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = "when_required"
+    os.environ["AWS_RESPONSE_CHECKSUM_VALIDATION"] = "when_required"
+    # 2 Connect to s3 bucket
+    s3 = boto3.session.Session().client(
+        "s3",
+        endpoint_url=os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT"),
+        aws_access_key_id=os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"),
+        aws_secret_access_key=os.getenv(
+            "PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"
+        ),
+    )
+    path = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX")
+    job_name = None if not pod.metadata.labels else pod.metadata.labels["job-name"]
+    if job_name is None:
+        LOGGER.error(
+            f"Job name label not found in pod metadata: '{pod.metadata}'. Using millis of start time."
+        )
+        job_name = int(pod.status.start_time.timestamp() * 1000)
+
+    log_file_with_path = f"{path}{job_name}-logs.txt"
+    bucket_name = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME")
+    LOGGER.debug(
+        f"Upload target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
+    )
+    try:
+        s3.head_object(Bucket=bucket_name, Key=log_file_with_path)
+        log_file_with_path = f"{log_file_with_path}.duplicate.txt"
+        LOGGER.debug(
+            f"Upload target exists. New target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
+        )
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "404":
+            LOGGER.error(
+                f"Checking for object 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}' in\
+                      bucket failed: {e}"
+            )
+            # TODO: How to handle this error
+
+    # 3 upload file
+    LOGGER.debug("Start writing file")
+    s3.put_object(
+        Bucket=bucket_name, Key=log_file_with_path, Body=str(logs).encode("utf-8")
+    )
+    LOGGER.info(f"Log data saved to '{log_file_with_path}'")
+
+
 def kubernetes_finalizer_handle_deletion_event(
     k8s_core_api: CoreV1Api,
     finalizer_id: str,
     namespace: str,
     pod: V1Pod,
-    upload_log_to_s3: bool,
+    upload_logs: bool = False,
 ) -> None:
     name = pod.metadata.name
     LOGGER.debug(f"Handling deletion for pod: {name}")
@@ -164,61 +219,15 @@ def kubernetes_finalizer_handle_deletion_event(
         return
 
     # 1 get logs from pod container #1
-    logs = k8s_client.CoreV1Api().read_namespaced_pod_log_with_http_info(
+    logs = k8s_core_api.read_namespaced_pod_log_with_http_info(
         name=pod.metadata.name,
         namespace=pod.metadata.namespace,
         container=pod.spec.containers[0].name,
     )
-    if logs is None:
+    if logs is None or len(logs) == 0:
         LOGGER.error(f"Could not retrieve logs for pod '{pod.name}'")
-    elif upload_log_to_s3:
-        LOGGER.debug("Retrieve logs from pod")
-        #
-        # see https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html#envvars-list-AWS_REQUEST_CHECKSUM_CALCULATION # noqa: E501
-        #
-        #
-        os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = "when_required"
-        os.environ["AWS_RESPONSE_CHECKSUM_VALIDATION"] = "when_required"
-        # 2 Connect to s3 bucket
-        s3 = boto3.session.Session().client(
-            "s3",
-            endpoint_url=os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT"),
-            aws_access_key_id=os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"),
-            aws_secret_access_key=os.getenv(
-                "PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"
-            ),
-        )
-        path = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX")
-        job_name = None if not pod.metadata.labels else pod.metadata.labels["job-name"]
-        if job_name is None:
-            LOGGER.error(
-                f"Job name label not found in pod metadata: '{pod.metadata}'. Using millis of start time."
-            )
-            job_name = int(pod.status.start_time.timestamp() * 1000)
-
-        log_file_with_path = f"{path}{job_name}-logs.txt"
-        bucket_name = os.getenv("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME")
-        LOGGER.debug(
-            f"Upload target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
-        )
-        try:
-            s3.head_object(Bucket=bucket_name, Key=log_file_with_path)
-            log_file_with_path = f"{log_file_with_path}.duplicate.txt"
-            LOGGER.debug(
-                f"Upload target exists. New target: 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}"
-            )
-        except ClientError as e:
-            if e.response["Error"]["Code"] != "404":
-                LOGGER.error(
-                    f"Checking for object 's3://{s3.meta.endpoint_url}/{bucket_name}/{log_file_with_path}' in\
-                          bucket failed: {e}"
-                )
-        # 3 upload file
-        LOGGER.debug("Start writing file")
-        s3.put_object(
-            Bucket=bucket_name, Key=log_file_with_path, Body=str(logs).encode("utf-8")
-        )
-        LOGGER.info(f"Log data saved to '{log_file_with_path}'")
+    elif upload_logs:
+        upload_logs_to_s3(pod, logs)
     # 4 Remove finalizer entry to allow pod termination
     pod.metadata.finalizers.remove(finalizer_id)
     body = {
@@ -228,10 +237,11 @@ def kubernetes_finalizer_handle_deletion_event(
             )
         }
     }
-    deleted_pod, status, headers = k8s_core_api.patch_namespaced_pod_with_http_info(
+    # V1Pod, status_code(int), headers(HTTPHeaderDict)
+    deleted_pod, status, = k8s_core_api.patch_namespaced_pod_with_http_info(
         name=name, namespace=namespace, body=body
     )
-    LOGGER.debug(f"Removed finalizer from pod '{name}' with HTTP status '{status}'")
+    LOGGER.debug(f"Removed finalizer from pod '{deleted_pod.metadata.name}' with HTTP status '{status}'")
 
 
 def check_s3_log_upload_variables() -> bool:
@@ -261,7 +271,7 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
         with lock.acquire(timeout=0):
             LOGGER.debug("Got the lock.")
             # check env config
-            upload_logs_to_s3 = check_s3_log_upload_variables()
+            upload_logs = check_s3_log_upload_variables()
 
             finalizer_id = format_log_finalizer()
             k8s_core_api = k8s_client.CoreV1Api()
@@ -306,7 +316,7 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
                                     finalizer_id,
                                     namespace,
                                     pod,
-                                    upload_logs_to_s3,
+                                    upload_logs,
                                 )
                             if event_type == "BOOKMARK":
                                 LOGGER.debug(
@@ -322,6 +332,7 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
                         )
                         resource_version = None
                         break
+
     except Timeout:
         LOGGER.error(
             "Did not get the lock, hopefully someone else will take care of the finalizer task :-(."

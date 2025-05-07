@@ -26,13 +26,14 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 # =================================================================
+import logging
 import os
+import pytest
+
 from unittest.mock import (
     MagicMock,
     patch
 )
-
-import pytest
 
 from pygeoapi.process.base import (
     JobNotFoundError,
@@ -46,6 +47,7 @@ from pygeoapi_kubernetes_manager.manager import (
     job_message,
     job_from_k8s,
     check_s3_log_upload_variables,
+    kubernetes_finalizer_handle_deletion_event,
     kubernetes_finalizer_loop,
 )
 
@@ -462,7 +464,6 @@ def manager_with_log_level():
 
 def test_manager_log_level_configuration(manager_with_log_level):
     manager_with_log_level
-    import logging
     assert logging.getLogger('kubernetes').getEffectiveLevel() == logging.INFO
     assert logging.getLogger('boto3').getEffectiveLevel() == logging.CRITICAL
 
@@ -542,6 +543,49 @@ def test_check_s3_log_upload_variables():
     os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET", None)
     os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME", None)
     os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX", None)
+
+
+def test_kubernetes_finalizer_handle_deletion_event_does_nothing_if_not_required():
+    k8s_core_api = MagicMock()
+    test_pod = MagicMock()
+    test_pod.metadata.name = "test-pod"
+    test_pod.metadata.finalizers = ["not-my-finalizer"]
+
+    kubernetes_finalizer_handle_deletion_event(
+        k8s_core_api=k8s_core_api,
+        finalizer_id="test_finalizer_id",
+        namespace="test_namespace",
+        pod=test_pod,
+        upload_logs=False
+    )
+
+    k8s_core_api.read_namespaced_pod_log_with_http_info.assert_not_called()
+
+
+def test_kubernetes_finalizer_handle_deletion_event_removes_finalizer_if_no_logs_found():
+    k8s_core_api = MagicMock()
+    k8s_core_api.read_namespaced_pod_log_with_http_info.return_value = None
+    deleted_pod = MagicMock()
+    deleted_pod.metadata.name = "deleted-pod"
+    k8s_core_api.patch_namespaced_pod_with_http_info.return_value = (deleted_pod, 200, )
+    finalizer_id = "test_finalizer_id"
+    test_pod = MagicMock()
+    test_pod.metadata.name = "test-pod"
+    test_pod.metadata.finalizers = ["not-my-finalizer", finalizer_id]
+
+    with patch("pygeoapi_kubernetes_manager.manager.upload_logs_to_s3") as mocked_upload_logs_to_s3:
+        kubernetes_finalizer_handle_deletion_event(
+            k8s_core_api=k8s_core_api,
+            finalizer_id=finalizer_id,
+            namespace="test_namespace",
+            pod=test_pod,
+            upload_logs=False
+        )
+
+        k8s_core_api.read_namespaced_pod_log_with_http_info.assert_called_once()
+        mocked_upload_logs_to_s3.assert_not_called()
+        k8s_core_api.patch_namespaced_pod_with_http_info.assert_called_once()
+        assert test_pod.metadata.finalizers == ["not-my-finalizer"]
 
 
 @pytest.fixture
