@@ -76,10 +76,9 @@ jobs:
       run: |
         pytest tests/
     -
-      name: run flake8
+      name: run ruff
       run: |
-        flake8 tests
-        flake8 pygeoapi_kubernetes_manager
+        ruff check
     -
       name: Build and push Docker image
       uses: docker/build-push-action@v6

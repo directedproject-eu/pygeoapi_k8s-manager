@@ -49,13 +49,13 @@ def current_namespace():
     # https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/
     try:
         return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         # if not in cluster, env should be set, so check this
         ns_env_key = "PYGEOAPI_K8S_MANAGER_NAMESPACE"
         if ns_env_key in os.environ:
             return os.getenv(ns_env_key)
         else:
-            raise KeyError(f"Required environment variable '{ns_env_key}' is missing.")
+            raise KeyError(f"Required environment variable '{ns_env_key}' is missing.") from e
 
 
 _ANNOTATIONS_PREFIX = "pygeoapi.io/"

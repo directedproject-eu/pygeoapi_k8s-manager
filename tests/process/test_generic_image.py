@@ -287,7 +287,7 @@ def test_absence_of_resources(processor, data):
     with pytest.raises(NotImplementedError) as error:
         processor.create_job_pod_spec(data=data, job_name="test-job")
 
-    assert error.type == NotImplementedError
+    assert error.type is NotImplementedError
     assert error.match("Default resources not implemented. Please specify in process resource!")
 
 

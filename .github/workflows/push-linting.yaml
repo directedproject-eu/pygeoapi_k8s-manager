@@ -1,6 +1,6 @@
 name: "lint after push"
 concurrency:
-  group: "pygeoapi-k8s-manager-flake8"
+  group: "pygeoapi-k8s-manager-push-lint"
   cancel-in-progress: true
 on:
   [ push, pull_request ]
@@ -18,7 +18,6 @@ jobs:
           pip3 install -r requirements.txt
           pip3 install -r requirements-dev.txt
       -
-        name: run flake8
+        name: run ruff
         run: |
-          flake8 pygeoapi_kubernetes_manager
-          flake8 tests
+          ruff check

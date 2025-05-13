@@ -458,7 +458,7 @@ def test_update_job_returns_not_implemented_error(manager):
 @pytest.mark.skip("TODO implement")
 def test_execute_job(manager, process_id):
     # TODO: Continue work here
-    assert False
+    raise AssertionError("TODO implement")
 
 
 @pytest.fixture
@@ -473,7 +473,7 @@ def manager_with_log_level():
 
 
 def test_manager_log_level_configuration(manager_with_log_level):
-    manager_with_log_level
+    manager_with_log_level  # noqa: B018
     assert logging.getLogger("kubernetes").getEffectiveLevel() == logging.INFO
     assert logging.getLogger("boto3").getEffectiveLevel() == logging.CRITICAL
 
@@ -520,7 +520,7 @@ def test_kubernetes_processor_sets_mimetype():
 
 def test_manager_starts_no_thread_if_not_configured(manager):
     with pytest.raises(AttributeError) as error:
-        manager.finalizer_controller is None
+        manager.finalizer_controller  # noqa: B018
 
     assert error.type is AttributeError
     assert error.match(
@@ -638,8 +638,9 @@ def manager_with_finalizer():
 @pytest.mark.skip("Causing to much logging noise atm")
 def test_manager_starts_thread_if_finalizer_is_configured(manager_with_finalizer):
     assert manager_with_finalizer.finalizer_controller.is_alive()
+    manager_with_finalizer.finalizer_controller.do_run = False
 
 
 @pytest.mark.skip("TODO implement")
 def test_kubernetes_finalizer_loop():
-    assert False
+    raise AssertionError("Implement me")

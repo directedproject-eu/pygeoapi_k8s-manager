@@ -7,4 +7,4 @@ time-machine
 #
 #   other
 #
-flake8
+ruff
