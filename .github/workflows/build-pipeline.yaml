@@ -79,6 +79,7 @@ jobs:
       name: run ruff
       run: |
         ruff check
+        ruff format --diff
     -
       name: Build and push Docker image
       uses: docker/build-push-action@v6
