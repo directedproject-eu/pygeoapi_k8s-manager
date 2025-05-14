@@ -168,3 +168,8 @@ resources:
         limits:
           memory: 256M
           cpu: 100m
+      tolerations:
+      - key: "toleration-key"
+        value: "toleration-value"
+        operator: "Equal"
+        effect: "NoSchedule"

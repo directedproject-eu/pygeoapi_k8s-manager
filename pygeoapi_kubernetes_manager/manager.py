@@ -106,7 +106,6 @@ class KubernetesProcessor(BaseProcessor):
     class JobPodSpec:
         pod_spec: k8s_client.V1PodSpec
         extra_annotations: dict[str, str]
-        # extra_labels: dict[str, str]
 
     def __init__(self, processor_def, process_metadata):
         super().__init__(processor_def, process_metadata)
@@ -119,7 +118,7 @@ class KubernetesProcessor(BaseProcessor):
                 "tolerations": [k8s_client.V1Toleration(**toleration) for toleration in self.tolerations]
             }
         else:
-            tolerations = {}
+            tolerations = None
         LOGGER.debug(f"tolerations: '{tolerations}'")
         return tolerations
 
@@ -564,6 +563,8 @@ class KubernetesManager(BaseManager):
             data=data_dict,
             job_name=job_name,
         )
+        if p.tolerations is not None and len(p.tolerations) > 0:
+            job_pod_spec.tolerations = p._add_tolerations()
 
         annotations = {
             "identifier": job_id,

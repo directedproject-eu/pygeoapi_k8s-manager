@@ -69,6 +69,7 @@ from kubernetes.client import (
     V1Pod,
     V1PodList,
     V1PodStatus,
+    V1Toleration,
 )
 
 import datetime
@@ -355,6 +356,40 @@ def test_manager_get_job_result_logs(manager, process_id, mocked_pod):
         mimetype, logs_received = manager.get_job_result(process_id)
     assert mimetype is None
     assert logs_received == logs_expected
+
+
+def test_manager_adds_tolerations_if_configured(manager):
+    tolerations = KubernetesProcessor(
+        {
+            "name": "tolerations-test-process",
+            "tolerations": [
+                {"key": "toleration-key", "value": "toleration-value", "operator": "Equal", "effect": "NoSchedule"}
+            ],
+        },
+        {},
+    )._add_tolerations()
+
+    assert len(tolerations) == 1
+    assert type(tolerations) is dict
+    assert len(tolerations["tolerations"]) == 1
+    assert type(tolerations["tolerations"]) is list
+    assert type(tolerations["tolerations"][0]) is V1Toleration
+    toleration = tolerations["tolerations"][0]
+    assert toleration.key == "toleration-key"
+    assert toleration.value == "toleration-value"
+    assert toleration.operator == "Equal"
+    assert toleration.effect == "NoSchedule"
+
+
+def test_manager_does_not_add_tolerations_if_not_configured(manager):
+    tolerations = KubernetesProcessor(
+        {
+            "name": "tolerations-test-process",
+        },
+        {},
+    )._add_tolerations()
+
+    assert tolerations is None
 
 
 def test_get_completion_time_failed_job(k8s_job_3_failed):
