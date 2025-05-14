@@ -1,6 +1,6 @@
-name: "lint after push"
+name: "lint and test after push"
 concurrency:
-  group: "pygeoapi-k8s-manager-push-lint"
+  group: "pygeoapi-k8s-manager-push-lint-and-test"
   cancel-in-progress: true
 on:
   # all pushes and PRs, but not tags
@@ -9,7 +9,7 @@ on:
       - '**'
   pull_request:
 jobs:
-  linter:
+  lint-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -22,8 +22,12 @@ jobs:
           pip3 install -r requirements.txt
           pip3 install -r requirements-dev.txt
       -
-        name: run linter
+        name: run linter and formatter
         run: |
           ruff check
           ruff check --select I
           ruff format --diff
+      -
+        name: run tests
+        run: |
+          pytest tests/
