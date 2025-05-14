@@ -15,3 +15,6 @@ unfixable = ["B"]
 "tests/**" = ["D"]
 # Ignore all files that end in `_test.py`.
 "*_test.py" = ["D"]
+
+[format]
+docstring-code-format = true
