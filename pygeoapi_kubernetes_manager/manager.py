@@ -607,10 +607,12 @@ class KubernetesManager(BaseManager):
             raise ProcessorExecuteError("Identify yourself with valid token!")
 
         if token != os.getenv(key):
-            LOGGER.error(
+            msg = "ACCESS DENIED: wrong token"
+            LOGGER.error(msg)
+            LOGGER.debug(
                 f"WRONG INTERNAL API TOKEN '{token}' ('{type(token)}') != '{os.getenv(key)}' ('{type(os.getenv(key))}')"
             )
-            raise ProcessorExecuteError("ACCESS DENIED: wrong token")
+            raise ProcessorExecuteError(msg)
 
 
 def job_message(namespace: str, job: k8s_client.V1Job) -> Optional[str]:
