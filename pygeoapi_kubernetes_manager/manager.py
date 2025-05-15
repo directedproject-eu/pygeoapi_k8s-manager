@@ -278,7 +278,7 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
                             LOGGER.debug(f"Event '{event_type}' with object pod '{pod.metadata.name}' received")
 
                             if (
-                                event_type not in ("ADDED", "DELETED")
+                                event_type in ("MODIFIED", "DELETED")
                                 and pod.metadata.deletion_timestamp
                                 and finalizer_id in (pod.metadata.finalizers or [])
                             ):
