@@ -65,9 +65,9 @@ from pygeoapi_kubernetes_manager.manager import (
     get_completion_time,
     get_job_name_from,
     get_log_file_path,
+    handle_deletion_event,
     job_from_k8s,
     job_message,
-    kubernetes_finalizer_handle_deletion_event,
 )
 from pygeoapi_kubernetes_manager.util import format_annotation_key, format_job_name
 
@@ -575,7 +575,7 @@ def test_kubernetes_finalizer_handle_deletion_event_does_nothing_if_not_required
     test_pod.metadata.name = "test-pod"
     test_pod.metadata.finalizers = ["not-my-finalizer"]
 
-    kubernetes_finalizer_handle_deletion_event(
+    handle_deletion_event(
         k8s_core_api=k8s_core_api,
         finalizer_id="test_finalizer_id",
         namespace="test_namespace",
@@ -601,7 +601,7 @@ def test_kubernetes_finalizer_handle_deletion_event_removes_finalizer_if_no_logs
     test_pod.metadata.finalizers = ["not-my-finalizer", finalizer_id]
 
     with patch("pygeoapi_kubernetes_manager.manager.upload_logs_to_s3") as mocked_upload_logs_to_s3:
-        kubernetes_finalizer_handle_deletion_event(
+        handle_deletion_event(
             k8s_core_api=k8s_core_api,
             finalizer_id=finalizer_id,
             namespace="test_namespace",

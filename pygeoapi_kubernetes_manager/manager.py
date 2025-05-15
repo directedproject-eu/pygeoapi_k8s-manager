@@ -189,16 +189,30 @@ def get_job_name_from(pod: V1Pod) -> str:
     return job_name
 
 
-def kubernetes_finalizer_handle_deletion_event(
+def handle_added_event(k8s_core_api: CoreV1Api, finalizer_id: str, namespace: str, pod: V1Pod) -> None:
+    LOGGER.debug(f"Found pod added '{pod.metadata.name}' without matching finalizer '{finalizer_id}'.")
+    if pod.metadata.finalizers is None:
+        pod.metadata.finalizers = []
+    pod.metadata.finalizers.add(finalizer_id)
+    body = {"metadata": {"finalizers": (None if len(pod.metadata.finalizers) == 0 else pod.metadata.finalizers)}}
+    (
+        updated_pod,
+        status,
+    ) = k8s_core_api.patch_namespaced_pod_with_http_info(name=pod.metadata.name, namespace=namespace, body=body)
+    LOGGER.debug(f"Added finalizer to pod '{updated_pod.metadata.name}' with HTTP status '{status}'")
+
+
+def handle_deletion_event(
     k8s_core_api: CoreV1Api,
     finalizer_id: str,
     namespace: str,
     pod: V1Pod,
     upload_logs: bool = False,
 ) -> None:
-    name = pod.metadata.name
-    LOGGER.debug(f"Handling deletion for pod: {name}")
-
+    LOGGER.debug(
+        f"Found pod '{pod.metadata.name}' to be deleted since \
+            '{pod.metadata.deletion_timestamp}' with matching finalizer '{finalizer_id}'."
+    )
     if finalizer_id not in pod.metadata.finalizers:
         return
 
@@ -219,7 +233,7 @@ def kubernetes_finalizer_handle_deletion_event(
     (
         deleted_pod,
         status,
-    ) = k8s_core_api.patch_namespaced_pod_with_http_info(name=name, namespace=namespace, body=body)
+    ) = k8s_core_api.patch_namespaced_pod_with_http_info(name=pod.metadata.name, namespace=namespace, body=body)
     LOGGER.debug(f"Removed finalizer from pod '{deleted_pod.metadata.name}' with HTTP status '{status}'")
 
 
@@ -278,22 +292,29 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
                             LOGGER.debug(f"Event '{event_type}' with object pod '{pod.metadata.name}' received")
 
                             if (
+                                event_type == "ADDED"
+                                and is_k8s_job_name(pod.metadata.name)
+                                and finalizer_id not in (pod.metadata.finalizers or [])
+                            ):
+                                handle_added_event(
+                                    k8s_core_api,
+                                    finalizer_id,
+                                    namespace,
+                                    pod,
+                                )
+                            elif (
                                 event_type in ("MODIFIED", "DELETED")
                                 and pod.metadata.deletion_timestamp
                                 and finalizer_id in (pod.metadata.finalizers or [])
                             ):
-                                LOGGER.debug(
-                                    f"Found pod '{pod.metadata.name}' to be deleted since \
-                                        '{pod.metadata.deletion_timestamp}' with matching finalizer '{finalizer_id}'."
-                                )
-                                kubernetes_finalizer_handle_deletion_event(
+                                handle_deletion_event(
                                     k8s_core_api,
                                     finalizer_id,
                                     namespace,
                                     pod,
                                     upload_logs,
                                 )
-                            if event_type == "BOOKMARK":
+                            elif event_type == "BOOKMARK":
                                 LOGGER.debug(
                                     f"Processing 'Bookmark': resource version: \
                                         '{resource_version}' -> {pod.metadata.resource_version}'."
