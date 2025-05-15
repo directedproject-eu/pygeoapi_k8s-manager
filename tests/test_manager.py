@@ -52,6 +52,7 @@ from kubernetes.client import (
     V1ObjectMeta,
     V1Pod,
     V1PodList,
+    V1PodSpec,
     V1PodStatus,
     V1Toleration,
 )
@@ -352,8 +353,13 @@ def test_manager_get_job_result_logs(manager, process_id, mocked_pod):
     assert logs_received == logs_expected
 
 
-def test_manager_adds_tolerations_if_configured(manager):
-    tolerations = KubernetesProcessor(
+@pytest.fixture()
+def minimal_job_spec():
+    return KubernetesProcessor.JobPodSpec(V1PodSpec(containers=[V1Pod()]), {})
+
+
+def test_manager_adds_tolerations_if_configured(minimal_job_spec):
+    spec_with_tolerations = KubernetesProcessor(
         {
             "name": "tolerations-test-process",
             "tolerations": [
@@ -361,29 +367,29 @@ def test_manager_adds_tolerations_if_configured(manager):
             ],
         },
         {},
-    )._add_tolerations()
+    )._add_tolerations(minimal_job_spec)
 
+    tolerations = spec_with_tolerations.pod_spec.tolerations
     assert len(tolerations) == 1
-    assert type(tolerations) is dict
-    assert len(tolerations["tolerations"]) == 1
-    assert type(tolerations["tolerations"]) is list
-    assert type(tolerations["tolerations"][0]) is V1Toleration
-    toleration = tolerations["tolerations"][0]
+    assert type(tolerations) is list
+    assert len(tolerations) == 1
+    assert type(tolerations[0]) is V1Toleration
+    toleration = tolerations[0]
     assert toleration.key == "toleration-key"
     assert toleration.value == "toleration-value"
     assert toleration.operator == "Equal"
     assert toleration.effect == "NoSchedule"
 
 
-def test_manager_does_not_add_tolerations_if_not_configured(manager):
-    tolerations = KubernetesProcessor(
+def test_manager_does_not_add_tolerations_if_not_configured(minimal_job_spec):
+    spec_without_tolerations = KubernetesProcessor(
         {
             "name": "tolerations-test-process",
         },
         {},
-    )._add_tolerations()
+    )._add_tolerations(minimal_job_spec)
 
-    assert tolerations is None
+    assert spec_without_tolerations.pod_spec.tolerations is None
 
 
 def test_get_completion_time_failed_job(k8s_job_3_failed):

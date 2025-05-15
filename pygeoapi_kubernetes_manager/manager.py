@@ -110,15 +110,13 @@ class KubernetesProcessor(BaseProcessor):
         self.mimetype = processor_def["mimetype"] if "mimetype" in processor_def else "application/json"
         self.tolerations: list = processor_def["tolerations"] if "tolerations" in processor_def else None
 
-    def _add_tolerations(self):
+    def _add_tolerations(self, job_spec: JobPodSpec):
         if self.tolerations:
-            tolerations: dict[str, Any] = {
-                "tolerations": [k8s_client.V1Toleration(**toleration) for toleration in self.tolerations]
-            }
-        else:
-            tolerations = None
-        LOGGER.debug(f"tolerations: '{tolerations}'")
-        return tolerations
+            tolerations: list[k8s_client.V1Toleration] = [
+                k8s_client.V1Toleration(**toleration) for toleration in self.tolerations
+            ]
+            job_spec.pod_spec.tolerations = tolerations
+        return job_spec
 
     def create_job_pod_spec(
         self,
@@ -561,8 +559,9 @@ class KubernetesManager(BaseManager):
             data=data_dict,
             job_name=job_name,
         )
+
         if p.tolerations is not None and len(p.tolerations) > 0:
-            job_pod_spec.tolerations = p._add_tolerations()
+            job_pod_spec = p._add_tolerations(job_pod_spec)
 
         annotations = {
             "identifier": job_id,
