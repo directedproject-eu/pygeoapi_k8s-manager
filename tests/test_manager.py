@@ -30,8 +30,10 @@ import datetime
 import logging
 import os
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
+import time_machine
 from botocore.exceptions import ClientError
 from kubernetes.client import (
     BatchV1Api,
@@ -62,6 +64,7 @@ from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
     check_s3_log_upload_variables,
+    create_job_body,
     get_completion_time,
     get_job_name_from,
     get_log_file_path,
@@ -358,13 +361,16 @@ def minimal_job_spec():
     return KubernetesProcessor.JobPodSpec(V1PodSpec(containers=[V1Pod()]), {})
 
 
-def test_manager_adds_tolerations_if_configured(minimal_job_spec):
+@pytest.fixture()
+def toleration():
+    return {"key": "toleration-key", "value": "toleration-value", "operator": "Equal", "effect": "NoSchedule"}
+
+
+def test_manager_adds_tolerations_if_configured(minimal_job_spec, toleration):
     spec_with_tolerations = KubernetesProcessor(
         {
             "name": "tolerations-test-process",
-            "tolerations": [
-                {"key": "toleration-key", "value": "toleration-value", "operator": "Equal", "effect": "NoSchedule"}
-            ],
+            "tolerations": [toleration],
         },
         {},
     )._add_tolerations(minimal_job_spec)
@@ -374,11 +380,10 @@ def test_manager_adds_tolerations_if_configured(minimal_job_spec):
     assert type(tolerations) is list
     assert len(tolerations) == 1
     assert type(tolerations[0]) is V1Toleration
-    toleration = tolerations[0]
-    assert toleration.key == "toleration-key"
-    assert toleration.value == "toleration-value"
-    assert toleration.operator == "Equal"
-    assert toleration.effect == "NoSchedule"
+    assert tolerations[0].key == "toleration-key"
+    assert tolerations[0].value == "toleration-value"
+    assert tolerations[0].operator == "Equal"
+    assert tolerations[0].effect == "NoSchedule"
 
 
 def test_manager_does_not_add_tolerations_if_not_configured(minimal_job_spec):
@@ -671,3 +676,36 @@ def test_manager_starts_thread_if_finalizer_is_configured(manager_with_finalizer
 @pytest.mark.skip("TODO implement")
 def test_kubernetes_finalizer_loop():
     raise AssertionError("Implement me")
+
+
+@pytest.fixture()
+def job_id():
+    return str(UUID(int=52))
+
+
+@pytest.fixture()
+def mimetype():
+    return "application/python-test"
+
+
+@pytest.fixture()
+def mocked_processor(minimal_job_spec, mimetype, process_id):
+    p = MagicMock()
+    p.create_job_pod_spec.return_value = minimal_job_spec
+    p.metadata = {"id": process_id}
+    p.mimetype = mimetype
+    return p
+
+
+def test_create_job_body_sets_required_annotations(job_id, mocked_processor, mimetype, process_id):
+    with time_machine.travel(datetime.datetime(2025, 1, 19, 15, 42, 1)):
+        job = create_job_body(mocked_processor, job_id, {}, False)
+
+        assert type(job.metadata) is V1ObjectMeta
+        assert type(job.metadata.annotations) is dict
+        assert len(job.metadata.annotations) == 5
+        assert job.metadata.annotations["pygeoapi.io/mimetype"] == mimetype
+        assert job.metadata.annotations["pygeoapi.io/identifier"] == job_id
+        assert job.metadata.annotations["pygeoapi.io/process_id"] == process_id
+        assert job.metadata.annotations["pygeoapi.io/started"] == "2025-01-19T15:42:01.000000Z"
+        assert job.metadata.annotations["pygeoapi.io/started"] == job.metadata.annotations["pygeoapi.io/updated"]
