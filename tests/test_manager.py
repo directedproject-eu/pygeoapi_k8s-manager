@@ -709,3 +709,30 @@ def test_create_job_body_sets_required_annotations(job_id, mocked_processor, mim
         assert job.metadata.annotations["pygeoapi.io/process_id"] == process_id
         assert job.metadata.annotations["pygeoapi.io/started"] == "2025-01-19T15:42:01.000000Z"
         assert job.metadata.annotations["pygeoapi.io/started"] == job.metadata.annotations["pygeoapi.io/updated"]
+
+
+class KubernetesProcessorForTesting(KubernetesProcessor):
+    def create_job_pod_spec(self, data, job_name):
+        return KubernetesProcessor.JobPodSpec(V1PodSpec(containers=[V1Pod()]), {})
+
+
+def test_create_job_body_sets_tolerations(process_id, job_id, toleration):
+    p = KubernetesProcessorForTesting(
+        {
+            "name": process_id,
+            "tolerations": [toleration],
+        },
+        {},
+    )
+    job = create_job_body(p, job_id, {}, False)
+
+    tolerations = job.spec.template.spec.tolerations
+    assert tolerations is not None
+    assert len(tolerations) == 1
+    assert type(tolerations) is list
+    assert len(tolerations) == 1
+    assert type(tolerations[0]) is V1Toleration
+    assert tolerations[0].key == "toleration-key"
+    assert tolerations[0].value == "toleration-value"
+    assert tolerations[0].operator == "Equal"
+    assert tolerations[0].effect == "NoSchedule"
