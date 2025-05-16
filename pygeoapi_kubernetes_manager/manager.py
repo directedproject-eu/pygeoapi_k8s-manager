@@ -224,6 +224,7 @@ def handle_deletion_event(
     )
     if logs is None or len(logs) == 0:
         LOGGER.error(f"Could not retrieve logs for pod '{pod.name}'")
+        # TODO what todo now? skip removing finalizer? skip uploading
     elif upload_logs:
         upload_logs_to_s3(pod, logs)
     # 4 Remove finalizer entry to allow pod termination
@@ -291,6 +292,7 @@ def kubernetes_finalizer_loop(lockfile: str, namespace: str) -> None:
                             event_type = event["type"]
                             LOGGER.debug(f"Event '{event_type}' with object pod '{pod.metadata.name}' received")
 
+                            # TODO maybe, switch to match statement!?
                             if (
                                 event_type in ("ADDED", "MODIFIED")
                                 and is_k8s_job_name(pod.metadata.name)
@@ -639,8 +641,9 @@ def create_job_body(
                 spec=job_pod_spec.pod_spec,
             ),
             backoff_limit=0,
+            # TODO Could configurable (by job, processor, or global)
+            # Lifetime of the job, NOT pod!
             # about 3 months (100 days)
-            # TODO MUST be configurable (by job, processor, or global)
             ttl_seconds_after_finished=60 * 60 * 24 * 100,
         ),
     )
