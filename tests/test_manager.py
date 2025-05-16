@@ -28,13 +28,11 @@
 # =================================================================
 import datetime
 import logging
-import os
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
 import time_machine
-from botocore.exceptions import ClientError
 from kubernetes.client import (
     BatchV1Api,
     CoreV1Api,
@@ -63,12 +61,8 @@ from pygeoapi.process.base import JobNotFoundError, JobResultNotFoundError
 from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
-    check_s3_log_upload_variables,
     create_job_body,
     get_completion_time,
-    get_job_name_from,
-    get_log_file_path,
-    handle_deletion_event,
     job_from_k8s,
     job_message,
 )
@@ -540,126 +534,6 @@ def test_manager_starts_no_thread_if_not_configured(manager):
     assert manager.finalizer_controller is None
 
 
-def test_check_s3_log_upload_variables():
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT", None)
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"] = "configured"
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"] = "configured"
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME"] = "configured"
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"] = "configured"
-    assert check_s3_log_upload_variables() is False
-
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT"] = "configured"
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY", None)
-    assert check_s3_log_upload_variables() is False
-
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY"] = "configured"
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET", None)
-    assert check_s3_log_upload_variables() is False
-
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET"] = "configured"
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME", None)
-    assert check_s3_log_upload_variables() is False
-
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME"] = "configured"
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX", None)
-    assert check_s3_log_upload_variables() is False
-
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"] = "configured"
-    assert check_s3_log_upload_variables() is True
-
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_ENDPOINT", None)
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_KEY", None)
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_SECRET", None)
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_NAME", None)
-    os.environ.pop("PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX", None)
-
-
-def test_kubernetes_finalizer_handle_deletion_event_does_nothing_if_not_required():
-    k8s_core_api = MagicMock()
-    test_pod = MagicMock()
-    test_pod.metadata.name = "test-pod"
-    test_pod.metadata.finalizers = ["not-my-finalizer"]
-
-    handle_deletion_event(
-        k8s_core_api=k8s_core_api,
-        finalizer_id="test_finalizer_id",
-        namespace="test_namespace",
-        pod=test_pod,
-        upload_logs=False,
-    )
-
-    k8s_core_api.read_namespaced_pod_log_with_http_info.assert_not_called()
-
-
-def test_kubernetes_finalizer_handle_deletion_event_removes_finalizer_if_no_logs_found():
-    k8s_core_api = MagicMock()
-    k8s_core_api.read_namespaced_pod_log_with_http_info.return_value = None
-    deleted_pod = MagicMock()
-    deleted_pod.metadata.name = "deleted-pod"
-    k8s_core_api.patch_namespaced_pod_with_http_info.return_value = (
-        deleted_pod,
-        200,
-    )
-    finalizer_id = "test_finalizer_id"
-    test_pod = MagicMock()
-    test_pod.metadata.name = "test-pod"
-    test_pod.metadata.finalizers = ["not-my-finalizer", finalizer_id]
-
-    with patch("pygeoapi_kubernetes_manager.manager.upload_logs_to_s3") as mocked_upload_logs_to_s3:
-        handle_deletion_event(
-            k8s_core_api=k8s_core_api,
-            finalizer_id=finalizer_id,
-            namespace="test_namespace",
-            pod=test_pod,
-            upload_logs=False,
-        )
-
-        k8s_core_api.read_namespaced_pod_log_with_http_info.assert_called_once()
-        mocked_upload_logs_to_s3.assert_not_called()
-        k8s_core_api.patch_namespaced_pod_with_http_info.assert_called_once()
-        assert test_pod.metadata.finalizers == ["not-my-finalizer"]
-
-
-@pytest.fixture()
-def pod_with_job_name() -> V1Pod:
-    return V1Pod(metadata=V1ObjectMeta(labels={"job-name": "test-job-name"}))
-
-
-def test_get_job_name_from_pod(pod_with_job_name):
-    assert get_job_name_from(pod_with_job_name) == "test-job-name"
-
-
-def test_get_job_name_returns_alternative_job_name():
-    test_pod = V1Pod(
-        metadata=V1ObjectMeta(),
-        status=V1PodStatus(start_time=datetime.datetime(1970, 1, 1, 12, 00, 0, tzinfo=datetime.timezone.utc)),
-    )
-    assert get_job_name_from(test_pod) == "pygeoapi-job-00000000-0000-0000-0000-00000000a8c0"
-
-
-def test_get_log_file_path(pod_with_job_name):
-    test_endpoint_url = "test-endpoint-url"
-    test_bucket_prefix = "my-bucket/prefix/"
-    os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"] = test_bucket_prefix
-    s3 = MagicMock()
-    s3.meta.endpoint_url = test_endpoint_url
-    error_response = {
-        "Error": {
-            "Code": "404",
-        }
-    }
-    s3.head_object.side_effect = ClientError(error_response, "test-operations-name")
-    log_file_path = get_log_file_path(s3, pod_with_job_name, "test-bucket-name")
-
-    assert log_file_path == f"{test_bucket_prefix}test-job-name-logs.txt"
-
-    s3.head_object.result_value = None
-    s3.head_object.side_effect = None
-    log_file_path = get_log_file_path(s3, pod_with_job_name, "test-bucket-name")
-
-    assert log_file_path == f"{test_bucket_prefix}test-job-name-logs.duplicate.txt"
-
-    del os.environ["PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX"]
 
 
 @pytest.fixture
