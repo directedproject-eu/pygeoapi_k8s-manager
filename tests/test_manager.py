@@ -747,3 +747,13 @@ def test_create_job_body_sets_finalizer(testing_processor, job_id):
     job = create_job_body(testing_processor, job_id, {}, True)
 
     assert job.spec.template.metadata.finalizers == [format_log_finalizer()]
+
+
+def test_create_job_body_set_defaults(testing_processor, job_id):
+    job = create_job_body(testing_processor, job_id, {}, False)
+
+    assert job.api_version == "batch/v1"
+    assert job.kind == "Job"
+    assert job.metadata.name == format_job_name(job_id)
+    assert job.spec.backoff_limit == 0
+    assert job.spec.ttl_seconds_after_finished == 60 * 60 * 24 * 100
