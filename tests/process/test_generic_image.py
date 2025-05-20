@@ -309,3 +309,92 @@ def test_check_auth(processor):
 
     processor.is_check_auth = None
     assert processor.check_auth()
+
+
+@pytest.fixture()
+def processor_with_init_containers(processor):
+    processor.init_containers = [
+        {
+            "name": "init-0",
+            "image": "init-0-image:latest",
+            "imagePullPolicy": "Always",
+            "command": ["python3"],
+            "args": ["/my_python_init_script.py"],
+            "env": [
+                {"name": "FSSPEC_S3_ENDPOINT_URL", "value": "https://obs.eu-de.otc.t-systems.com"},
+                {
+                    "name": "FSSPEC_S3_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": "s3-credentials",
+                            "key": "key",
+                        }
+                    },
+                },
+            ],
+            "resources": {
+                "requests": {
+                    "memory": "2048M",
+                    "cpu": "1m",
+                },
+                "limits": {
+                    "memory": "2500M",
+                    "cpu": "1000m",
+                },
+            },
+            "volumeMounts": [{"name": "mount-1", "mountPath": "/inputs/"}],
+        },
+        {
+            "name": "init-1",
+            "image": "init-1-image:latest",
+            "imagePullPolicy": "IfNotPresent",
+        },
+    ]
+    return processor
+
+
+def test_adds_init_containers(processor_with_init_containers):
+    test_job_name = "test-job-name"
+    job_spec = processor_with_init_containers.create_job_pod_spec({}, test_job_name)
+
+    assert len(job_spec.pod_spec.init_containers) == 2
+
+    init_0 = job_spec.pod_spec.init_containers[0]
+    assert init_0.name == "init-0"
+    assert init_0.image == "init-0-image:latest"
+    assert init_0.image_pull_policy == "Always"
+    assert init_0.command == ["python3"]
+    assert init_0.args == ["/my_python_init_script.py"]
+    assert init_0.env == [
+        {"name": "FSSPEC_S3_ENDPOINT_URL", "value": "https://obs.eu-de.otc.t-systems.com"},
+        {
+            "name": "FSSPEC_S3_KEY",
+            "valueFrom": {
+                "secretKeyRef": {
+                    "name": "s3-credentials",
+                    "key": "key",
+                }
+            },
+        },
+    ]
+    assert init_0.volume_mounts == [{"name": "mount-1", "mountPath": "/inputs/"}]
+    assert init_0.resources == {
+        "requests": {
+            "memory": "2048M",
+            "cpu": "1m",
+        },
+        "limits": {
+            "memory": "2500M",
+            "cpu": "1000m",
+        },
+    }
+
+    init_1 = job_spec.pod_spec.init_containers[1]
+    assert init_1.name == "init-1"
+    assert init_1.image == "init-1-image:latest"
+    assert init_1.image_pull_policy == "IfNotPresent"
+    assert init_1.command is None
+    assert init_1.args is None
+    assert init_1.volume_mounts is None
+    assert init_1.resources is None
+    assert init_1.env is None

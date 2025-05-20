@@ -85,6 +85,7 @@ class GenericImageProcessor(KubernetesProcessor):
         self.mimetype: str = self._output_mimetype(processor_def["metadata"])
         self.supports_outputs: bool = True if self.mimetype else False
         self.storage: dict = processor_def["storage"] if "storage" in processor_def.keys() else None
+        self.init_containers = processor_def["init_containers"] if "init_containers" in processor_def else None
 
     def _output_mimetype(self, metadata: dict) -> str:
         """
@@ -200,6 +201,27 @@ class GenericImageProcessor(KubernetesProcessor):
             annotations["parameters"] = json.dumps(data)
         return annotations
 
+    def _add_init_containers(self) -> list[k8s_client.V1Container] | None:
+        if self.init_containers is None:
+            return None
+        k8s_init_containers = []
+        for init_container in self.init_containers:
+            k8s_init_containers.append(
+                k8s_client.V1Container(
+                    name=init_container["name"],
+                    image_pull_policy=init_container["imagePullPolicy"]
+                    if "imagePullPolicy" in init_container
+                    else None,
+                    image=init_container["image"] if "image" in init_container else None,
+                    command=init_container["command"] if "command" in init_container else None,
+                    args=init_container["args"] if "args" in init_container else None,
+                    env=init_container["env"] if "env" in init_container else None,
+                    volume_mounts=init_container["volumeMounts"] if "volumeMounts" in init_container else None,
+                    resources=init_container["resources"] if "resources" in init_container else None,
+                ),
+            )
+        return k8s_init_containers
+
     def create_job_pod_spec(self, data: dict, job_name: str) -> KubernetesProcessor.JobPodSpec:
         LOGGER.debug("Starting job with data %s", data)
         # TODO add input validation using data and self.metadata["inputs"]
@@ -215,6 +237,7 @@ class GenericImageProcessor(KubernetesProcessor):
         k8s_volume_mounts = self._volume_mounts_from_processor_spec()
         k8s_volumes = self._volumes_from_processor_spec()
         k8s_extra_annotations = self._extra_annotations_from(job_name, data)
+        k8s_init_containers = self._add_init_containers()
 
         image_container = k8s_client.V1Container(
             name="generic-image-processor",
@@ -230,6 +253,7 @@ class GenericImageProcessor(KubernetesProcessor):
                 restart_policy="Never",
                 # NOTE: first container is used for status check
                 containers=[image_container],  # + extra_config.containers,
+                init_containers=k8s_init_containers,
                 # we need this to be able to terminate the sidecar container
                 # https://github.com/kubernetes/kubernetes/issues/25908
                 share_process_namespace=True,
