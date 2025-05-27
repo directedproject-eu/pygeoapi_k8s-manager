@@ -473,12 +473,6 @@ def test_update_job_returns_not_implemented_error(manager):
     assert error.match("Currently there's no use case for updating k8s jobs")
 
 
-@pytest.mark.skip("TODO implement")
-def test_execute_job(manager, process_id):
-    # TODO: Continue work here
-    raise AssertionError("TODO implement")
-
-
 @pytest.fixture
 def manager_with_log_level():
     return KubernetesManager(
@@ -539,17 +533,6 @@ def test_manager_starts_no_thread_if_not_configured(manager):
 @pytest.fixture
 def manager_with_finalizer():
     return KubernetesManager({"name": "test-manager", "mode": "test", "finalizer_controller": True})
-
-
-@pytest.mark.skip("Causing to much logging noise atm")
-def test_manager_starts_thread_if_finalizer_is_configured(manager_with_finalizer):
-    assert manager_with_finalizer.finalizer_controller.is_alive()
-    manager_with_finalizer.finalizer_controller.do_run = False
-
-
-@pytest.mark.skip("TODO implement")
-def test_kubernetes_finalizer_loop():
-    raise AssertionError("Implement me")
 
 
 @pytest.fixture()
