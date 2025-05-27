@@ -78,8 +78,8 @@ class GenericImageProcessor(KubernetesProcessor):
 
         self.default_image: str = processor_def["default_image"]
         self.command: str = processor_def["command"] if "command" in processor_def.keys() else None
-        self.image_pull_secret: str = (
-            processor_def["image_pull_secret"] if "image_pull_secret" in processor_def.keys() else None
+        self.image_pull_secrets: str = (
+            processor_def["image_pull_secrets"] if "image_pull_secrets" in processor_def.keys() else None
         )
         self.env: dict = processor_def["env"] if "env" in processor_def.keys() else {}
         self.resources: dict = processor_def["resources"] if "resources" in processor_def.keys() else None
@@ -240,8 +240,8 @@ class GenericImageProcessor(KubernetesProcessor):
 
         extra_podspec = {}
 
-        if self.image_pull_secret:
-            extra_podspec["image_pull_secrets"] = [k8s_client.V1LocalObjectReference(name=self.image_pull_secret)]
+        if self.image_pull_secrets:
+            extra_podspec["image_pull_secrets"] = [k8s_client.V1LocalObjectReference(name=self.image_pull_secrets)]
 
         k8s_env = self._env_from_processor_spec()
         k8s_env = self._add_inputs_to_env(data, k8s_env)

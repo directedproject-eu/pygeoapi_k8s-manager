@@ -85,7 +85,7 @@ def processor() -> GenericImageProcessor:
             "default_image": "example-image",
             "command": ["test-command"],
             "mimetype": "application/json",
-            "image_pull_secret": "test-image-pull-secret",
+            "image_pull_secrets": "test-image-pull-secret",
             "resources": {
                 "requests": {
                     "memory": "test-memory-request",
@@ -143,7 +143,7 @@ def test_processor_def_is_parsed(processor):
     assert processor.supports_outputs is True
     assert processor.default_image == "example-image"
     assert processor.mimetype == "test-output/mimetype"
-    assert processor.image_pull_secret == "test-image-pull-secret"
+    assert processor.image_pull_secrets == "test-image-pull-secret"
 
     meta = processor.metadata
     assert meta["id"] == "ingestor-cds-process"
@@ -305,7 +305,7 @@ def test_create_job_pod_spec(processor, data):
 
 
 def test_absence_of_image_pull_secret(processor, data):
-    processor.image_pull_secret = None
+    processor.image_pull_secrets = None
     job_pod_spec = processor.create_job_pod_spec(data=data, job_name="test_job")
 
     assert job_pod_spec.pod_spec.image_pull_secrets is None

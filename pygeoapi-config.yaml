@@ -142,7 +142,7 @@ resources:
             token: token
       default_image: bash:latest
       # OPTIONAL
-      # image_pull_secret: default-secret
+      # image_pull_secrets: default-secret
       command:
         - bash
         - -c
