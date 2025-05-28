@@ -48,6 +48,16 @@ Apply k8s manifests:
 k8s-kind/$ kubectl apply -k .
 ```
 
+## Create Bucket in Minio
+
+1. Open <http://localhost:30100/>.
+
+1. Use credentials from [minio set-up](minio.yaml) and log-in.
+
+1. Create a new bucket with name `test-bucket` by clicking on "Create Bucket" on the left.
+
+1. Select the newly created bucket and "create [a] new path" called `k8s-manager/logs/`.
+
 ## Test application
 
 Visit pygeoapi at <http://localhost:30080/pygeoapi/>

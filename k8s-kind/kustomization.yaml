@@ -5,7 +5,5 @@ namespace: default
 
 resources:
   - configmap.yaml
-  - deployment.yaml
-  - permissions.yaml
-  - secret.yaml
-  - service.yaml
+  - manager.yaml
+  - minio.yaml

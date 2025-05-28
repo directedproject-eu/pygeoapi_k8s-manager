@@ -131,8 +131,9 @@ class KubernetesFinalizerController:
                                     resource_version = pod.metadata.resource_version
                             LOGGER.debug("Finished inner watch")
 
-                        except k8s_client.ApiException:
+                        except k8s_client.ApiException as e:
                             LOGGER.debug("Api Exception received. Resetting resource_version and trigger resyncing.")
+                            LOGGER.debug(f"Received: {e}")
                             resource_version = None
                             break
 
