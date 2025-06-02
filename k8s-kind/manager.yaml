@@ -122,13 +122,21 @@ rules:
   - ""
   resources:
   - events
-  - pods
   - pods/log
   - pods/status
   verbs:
   - get
   - watch
   - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+  - list
+  - patch
 - apiGroups:
   - batch
   resources:

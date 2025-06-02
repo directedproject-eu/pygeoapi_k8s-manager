@@ -30,7 +30,7 @@ jobs.batch   []                 []              [get list watch create update pa
 events       []                 []              [get watch list]
 pods/log     []                 []              [get watch list]
 pods/status  []                 []              [get watch list]
-pods         []                 []              [get watch list]
+pods         []                 []              [get watch list patch]
 ```
 
 See [k8s manifest examples](./k8s-manifests/) for an example set-up, that outlines the required adjustments to your cluster.

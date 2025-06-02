@@ -148,9 +148,11 @@ class HelloWorldK8sProcessor(KubernetesProcessor):
         if self.image_pull_secrets:
             extra_podspec["image_pull_secrets"] = [k8s_client.V1LocalObjectReference(name=self.image_pull_secrets)]
 
-        msg = f"Hello '{requested.name}'!"
+        msg = f"Hello '{requested.name}'"
         if requested.message:
             msg = f"{msg}: '{requested.message}'"
+        else:
+            msg += "!"
 
         command = f"echo -n {msg}"
         if self.command:

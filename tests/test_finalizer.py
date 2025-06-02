@@ -113,6 +113,7 @@ def test_kubernetes_finalizer_handle_deletion_event_removes_finalizer_if_no_logs
     k8s_core_api.patch_namespaced_pod_with_http_info.return_value = (
         deleted_pod,
         200,
+        {},
     )
     test_pod = MagicMock()
     test_pod.metadata.name = "test-pod"
@@ -191,7 +192,7 @@ def test_add_finalizer_to_pod_metadata(finalizer):
     pod.metadata.finalizers = None
     pod.metadata.name = pod_test_name
     k8s_core_api = MagicMock()
-    k8s_core_api.patch_namespaced_pod_with_http_info.return_value = (pod, 200)
+    k8s_core_api.patch_namespaced_pod_with_http_info.return_value = (pod, 200, {})
     expected_body = {"metadata": {"finalizers": [format_log_finalizer()]}}
 
     finalizer.add_finalizer_to_pod_metadata(k8s_core_api, format_log_finalizer(), pod)

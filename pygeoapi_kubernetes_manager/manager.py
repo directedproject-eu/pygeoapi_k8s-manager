@@ -281,6 +281,7 @@ class KubernetesManager(BaseManager):
         else:
             # ATM: get pod and pod logs and return them json encoded
             pod: k8s_client.V1Pod = pod_for_job_id(self.namespace, job["identifier"])
+            # FIXME implement downloading "results" from s3 bucket
             if pod is None:
                 msg = f"Pod not found for job '{job_id}'"
                 LOGGER.error(msg)

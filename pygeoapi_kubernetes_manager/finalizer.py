@@ -114,7 +114,7 @@ class KubernetesFinalizerController:
                                         pod,
                                     )
                                 elif (
-                                    event_type in ("MODIFIED", "DELETED")
+                                    event_type == "MODIFIED"
                                     and pod.metadata.deletion_timestamp
                                     and is_k8s_job_name(pod.metadata.name)
                                     and self.finalizer_id in (pod.metadata.finalizers or [])
@@ -133,7 +133,12 @@ class KubernetesFinalizerController:
 
                         except k8s_client.ApiException as e:
                             LOGGER.debug("Api Exception received. Resetting resource_version and trigger resyncing.")
+                            LOGGER.debug("-------------------------------------------------------------------------")
                             LOGGER.debug(f"Received: {e}")
+                            LOGGER.debug(type(e))
+                            LOGGER.debug(dir(e))
+                            LOGGER.debug("-------------------------------------------------------------------------")
+                            # FIXME raise or rethrow if 403 forbidden
                             resource_version = None
                             break
 
@@ -164,10 +169,7 @@ class KubernetesFinalizerController:
             pod.metadata.finalizers = []
         pod.metadata.finalizers.append(finalizer_id)
         body = {"metadata": {"finalizers": (None if len(pod.metadata.finalizers) == 0 else pod.metadata.finalizers)}}
-        (
-            updated_pod,
-            status,
-        ) = k8s_core_api.patch_namespaced_pod_with_http_info(
+        (updated_pod, status, _) = k8s_core_api.patch_namespaced_pod_with_http_info(
             name=pod.metadata.name, namespace=self.namespace, body=body
         )
         LOGGER.debug(f"Added finalizer to pod '{updated_pod.metadata.name}' with HTTP status '{status}'")
@@ -178,8 +180,7 @@ class KubernetesFinalizerController:
         pod: V1Pod,
     ) -> None:
         LOGGER.debug(
-            f"Found pod '{pod.metadata.name}' to be deleted since \
-                '{pod.metadata.deletion_timestamp}' with matching finalizer '{self.finalizer_id}'."
+            f"Found pod '{pod.metadata.name}' to be deleted since '{pod.metadata.deletion_timestamp}' with matching finalizer '{self.finalizer_id}'."
         )
         if self.finalizer_id not in pod.metadata.finalizers:
             return
@@ -196,19 +197,18 @@ class KubernetesFinalizerController:
         elif self.is_upload_logs_to_s3:
             self.upload_logs_to_s3(self.get_job_name_from(pod), logs)
         # 4 Remove finalizer entry to allow pod termination
-        LOGGER.debug(
-            f"Remove finalizer entry with id '{self.finalizer_id}' from pod '{pod.metadata.name}' to allow termination/deletion..."
-        )
         pod.metadata.finalizers.remove(self.finalizer_id)
         body = {"metadata": {"finalizers": (None if len(pod.metadata.finalizers) == 0 else pod.metadata.finalizers)}}
+        LOGGER.debug(
+            f"Remove finalizer entry with id '{self.finalizer_id}' from pod '{pod.metadata.name}' in ns '{self.namespace}' to allow deletion: '{body}'"
+        )
         # V1Pod, status_code(int), headers(HTTPHeaderDict)
-        (
-            deleted_pod,
-            status,
-        ) = k8s_core_api.patch_namespaced_pod_with_http_info(
+        (deleted_pod, status, _) = k8s_core_api.patch_namespaced_pod_with_http_info(
             name=pod.metadata.name, namespace=self.namespace, body=body
         )
-        LOGGER.debug(f"Removed finalizer from pod '{deleted_pod.metadata.name}' with HTTP status '{status}'")
+        LOGGER.debug(
+            f"Removed finalizer from pod '{deleted_pod.metadata.name}' with HTTP status '{status}'. Finalizer: '{deleted_pod.metadata.finalizers}'"
+        )
 
     def upload_logs_to_s3(
         self,
