@@ -29,7 +29,9 @@ data:
       manager:
         name: pygeoapi_kubernetes_manager.KubernetesManager
         logging:
+          botocore: INFO
           kubernetes: INFO
+          pygeoapi.l10n: ERROR
         # enable k8s finalizer controller
         finalizer_controller: true
       admin: false # enable admin api

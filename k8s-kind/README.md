@@ -62,7 +62,7 @@ k8s-kind/$ kubectl apply -k .
 
 Visit pygeoapi at <http://localhost:30080/pygeoapi/>
 
-Execute the "hello world" process:
+Execute the "hello world" process **synchronous**:
 
 ```shell
 curl -v -X 'POST' \
@@ -70,11 +70,27 @@ curl -v -X 'POST' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
-  "inputs": {
-    "message": "Am I in TV, now?",
-    "name": "John Doe"
-  }
-}'
+        "inputs": {
+          "message": "Am I in TV, now?",
+          "name": "John Doe"
+        }
+      }'
+```
+
+or **asynchronous**:
+
+```shell
+curl -v -X 'POST' \
+  'http://localhost:30080/pygeoapi/processes/hello-world-k8s/execution' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -H 'Prefer: respond-async' \
+  -d '{
+        "inputs": {
+          "message": "Am I in TV, now?",
+          "name": "John Doe"
+        }
+      }'
 ```
 
 ## Remove cluster
