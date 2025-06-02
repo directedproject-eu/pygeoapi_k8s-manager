@@ -196,6 +196,9 @@ class KubernetesFinalizerController:
         elif self.is_upload_logs_to_s3:
             self.upload_logs_to_s3(self.get_job_name_from(pod), logs)
         # 4 Remove finalizer entry to allow pod termination
+        LOGGER.debug(
+            f"Remove finalizer entry with id '{self.finalizer_id}' from pod '{pod.metadata.name}' to allow termination/deletion..."
+        )
         pod.metadata.finalizers.remove(self.finalizer_id)
         body = {"metadata": {"finalizers": (None if len(pod.metadata.finalizers) == 0 else pod.metadata.finalizers)}}
         # V1Pod, status_code(int), headers(HTTPHeaderDict)
