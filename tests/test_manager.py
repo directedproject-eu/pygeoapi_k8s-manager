@@ -28,6 +28,7 @@
 # =================================================================
 import datetime
 import logging
+import os
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
@@ -57,7 +58,7 @@ from kubernetes.client import (
     V1PodStatus,
     V1Toleration,
 )
-from pygeoapi.process.base import BaseProcessor, JobNotFoundError, JobResultNotFoundError
+from pygeoapi.process.base import BaseProcessor, JobNotFoundError, JobResultNotFoundError, ProcessorExecuteError
 
 from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
@@ -663,3 +664,20 @@ def test_non_kubernetes_processors_are_rejected(manager):
     assert error.match(
         "'<class 'pygeoapi.process.base.BaseProcessor'>' is not a KubernetesProcessor as required by KubernetesManager."
     )
+
+
+@pytest.fixture()
+def processor() -> KubernetesProcessor:
+    return KubernetesProcessor({"name": "test-k8s-processor"}, {})
+
+
+def test_executions_with_wrong_or_without_token_are_rejected(manager, processor):
+    os.environ["PYGEOAPI_K8S_MANAGER_API_TOKEN"] = "right-token"
+    with pytest.raises(ProcessorExecuteError) as error:
+        manager._execute_handler_async(processor, "", {"token": "wrong-token"})
+    assert error.match("ACCESS DENIED: wrong token supplied!")
+
+    with pytest.raises(ProcessorExecuteError) as error:
+        manager._execute_handler_async(processor, "", {})
+    assert error.match("ACCESS DENIED: no token supplied!")
+    del os.environ["PYGEOAPI_K8S_MANAGER_API_TOKEN"]

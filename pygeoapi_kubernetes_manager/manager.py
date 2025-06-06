@@ -380,12 +380,14 @@ class KubernetesManager(BaseManager):
 
     def _check_auth_token(self, data_dict: dict):
         key = "PYGEOAPI_K8S_MANAGER_API_TOKEN"
-        token = data_dict["token"]
+        token = data_dict["token"] if "token" in data_dict.keys() else None
         if token is None:
-            raise ProcessorExecuteError("Identify yourself with valid token!")
+            msg = "ACCESS DENIED: no token supplied!"
+            LOGGER.error(msg)
+            raise ProcessorExecuteError(msg)
 
         if token != os.getenv(key):
-            msg = "ACCESS DENIED: wrong token"
+            msg = "ACCESS DENIED: wrong token supplied!"
             LOGGER.error(msg)
             LOGGER.debug(
                 f"WRONG INTERNAL API TOKEN '{token}' ('{type(token)}') != '{os.getenv(key)}' ('{type(os.getenv(key))}')"
