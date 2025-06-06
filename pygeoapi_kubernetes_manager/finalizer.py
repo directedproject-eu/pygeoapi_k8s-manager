@@ -152,6 +152,9 @@ class KubernetesFinalizerController:
             if value is None or len(value) == 0:
                 LOGGER.error(f"Required environment variable '{key}' not configured correctly: '{value}'")
                 upload_logs_to_s3 = False
+            elif key == "PYGEOAPI_K8S_MANAGER_FINALIZER_BUCKET_PATH_PREFIX" and not value.endswith("/"):
+                os.environ[key] += "/"
+                LOGGER.warning(f"Environment variable '{key}' didn't end with '/', appended: '{os.getenv(key)}'")
         if not upload_logs_to_s3:
             LOGGER.info("Will skip s3 upload to log files because of bad configuration")
         self.is_upload_logs_to_s3 = upload_logs_to_s3

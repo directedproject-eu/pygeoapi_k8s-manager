@@ -73,7 +73,8 @@ server:
 
 Ensure, that the bucket is **not publicly** available in the internet, because the logs might leak confidential information and should be consulted only by technical personnel.
 
-*Hint*: The controller will cancel the log file upload, if any of these variables is not configured and log errors. This will result in k8s resources not being deleted!
+*Hint*: The controller will cancel the log file upload, if any of these variables is not configured and log errors.
+This will result in k8s resources **not being deleted, which requires manual interaction**!
 
 ## Development
 

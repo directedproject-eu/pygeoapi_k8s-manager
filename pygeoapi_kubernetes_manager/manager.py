@@ -186,6 +186,8 @@ class KubernetesManager(BaseManager):
 
     def update_job(self, processid, job_id, update_dict):
         # we could update the metadata by changing the job annotations
+        # TODO What are the use cases in pygeoapi for this?
+        # TODO What are the use cases in the OGC spec?
         raise NotImplementedError("Currently there's no use case for updating k8s jobs")
 
     def get_jobs(self, status=None, limit=None, offset=None):
@@ -363,9 +365,7 @@ class KubernetesManager(BaseManager):
                   and JobStatus.accepted (i.e. initial job status)
         """
         if not isinstance(p, KubernetesProcessor):
-            raise NotImplementedError(
-                f"'{type(p).__name__}' is not a KubernetesProcessor as required by KubernetesManager."
-            )
+            raise NotImplementedError(f"'{type(p)}' is not a KubernetesProcessor as required by KubernetesManager.")
 
         if p.check_auth():
             self._check_auth_token(data_dict)
@@ -375,7 +375,7 @@ class KubernetesManager(BaseManager):
 
         LOGGER.debug(f"Trying to create job in namespace '{self.namespace}': '{job}")
         self.batch_v1.create_namespaced_job(body=job, namespace=self.namespace)
-        LOGGER.info("Add job %s in ns %s", job.metadata.name, self.namespace)
+        LOGGER.info(f"Add job '{job.metadata.name}' in ns {self.namespace}")
         return ("application/json", {}, JobStatus.accepted)
 
     def _check_auth_token(self, data_dict: dict):
