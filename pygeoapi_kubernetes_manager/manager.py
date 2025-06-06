@@ -122,7 +122,7 @@ class KubernetesProcessor(BaseProcessor):
         to provide a fixed link where the results will be available (the job itself
         has to ensure that the resulting data ends up at the link)
         """
-        raise NotImplementedError()
+        raise NotImplementedError("MUST be implemented by subclass.")
 
     def execute(self):
         raise NotImplementedError("Kubernetes Processes can't be executed directly, use KubernetesManager")
