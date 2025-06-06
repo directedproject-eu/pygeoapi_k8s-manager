@@ -365,7 +365,7 @@ class KubernetesManager(BaseManager):
                   and JobStatus.accepted (i.e. initial job status)
         """
         if not isinstance(p, KubernetesProcessor):
-            raise NotImplementedError(f"'{type(p)}' is not a KubernetesProcessor as required by KubernetesManager.")
+            raise ValueError(f"'{type(p)}' is not a KubernetesProcessor as required by KubernetesManager.")
 
         if p.check_auth():
             self._check_auth_token(data_dict)

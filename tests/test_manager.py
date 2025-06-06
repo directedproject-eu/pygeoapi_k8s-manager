@@ -57,7 +57,7 @@ from kubernetes.client import (
     V1PodStatus,
     V1Toleration,
 )
-from pygeoapi.process.base import JobNotFoundError, JobResultNotFoundError
+from pygeoapi.process.base import BaseProcessor, JobNotFoundError, JobResultNotFoundError
 
 from pygeoapi_kubernetes_manager.manager import (
     KubernetesManager,
@@ -654,3 +654,12 @@ def test_add_job_id_env():
     assert adjusted_pod_spec.init_containers[0].env[0].value == test_job_id
     assert adjusted_pod_spec.init_containers[1].env[0].name == "PYGEOAPI_JOB_ID"
     assert adjusted_pod_spec.init_containers[1].env[0].value == test_job_id
+
+
+def test_non_kubernetes_processors_are_rejected(manager):
+    with pytest.raises(ValueError) as error:
+        manager._execute_handler_async(BaseProcessor({"name": "test"}, {}), {}, "", {})
+    assert error.type is ValueError
+    assert error.match(
+        "'<class 'pygeoapi.process.base.BaseProcessor'>' is not a KubernetesProcessor as required by KubernetesManager."
+    )
