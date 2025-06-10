@@ -88,7 +88,7 @@ class KubernetesFinalizerController:
                             LOGGER.debug("Start inner loop")
                             watcher = watch.Watch()
                             for event in watcher.stream(
-                                BatchV1Api.list_namespaced_job,
+                                BatchV1Api().list_namespaced_job,
                                 namespace=self.namespace,
                                 resource_version=self.resource_version,
                             ):
