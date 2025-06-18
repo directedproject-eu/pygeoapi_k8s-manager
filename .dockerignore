@@ -5,8 +5,8 @@
 .gitignore
 kind.yaml
 .pytest_cache
-README.md
 .venv/
 .vscode
 .dockerignore
+dist/
 Dockerfile

@@ -42,7 +42,7 @@ from kubernetes.client.models import (
     V1VolumeMount,
 )
 
-from pygeoapi_kubernetes_manager.manager import KubernetesProcessor
+from pygeoapi_k8s_manager.manager import KubernetesProcessor
 
 LOGGER = logging.getLogger(__name__)
 

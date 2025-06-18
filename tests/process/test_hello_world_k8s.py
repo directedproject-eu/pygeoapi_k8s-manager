@@ -30,15 +30,15 @@ import re
 
 import pytest
 
-from pygeoapi_kubernetes_manager.process import HelloWorldK8sProcessor
-from pygeoapi_kubernetes_manager.util import ProcessorClientError
+from pygeoapi_k8s_manager.process import HelloWorldK8sProcessor
+from pygeoapi_k8s_manager.util import ProcessorClientError
 
 
 @pytest.fixture()
 def processor() -> HelloWorldK8sProcessor:
     return HelloWorldK8sProcessor(
         processor_def={
-            "name": "pygeoapi_kubernetes_manager.process.HelloWorldK8sProcessor",
+            "name": "pygeoapi_k8s_manager.process.HelloWorldK8sProcessor",
             "default_image": "test-image",
             "command": "test-command",
             "image_pull_secrets": "test-image-pull-secret",
@@ -49,7 +49,7 @@ def processor() -> HelloWorldK8sProcessor:
 def test_init(processor):
     assert processor.command == "test-command"
     assert processor.default_image == "test-image"
-    assert processor.name == "pygeoapi_kubernetes_manager.process.HelloWorldK8sProcessor"
+    assert processor.name == "pygeoapi_k8s_manager.process.HelloWorldK8sProcessor"
     assert processor.tolerations is None
 
 

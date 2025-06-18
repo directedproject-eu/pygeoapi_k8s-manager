@@ -21,19 +21,21 @@ RUN apt-get update \
 
 WORKDIR /k8s-manager
 
-COPY requirements-docker.txt .
-RUN python3 -m pip install -r requirements-docker.txt --no-cache-dir
+ARG VERSION=0.17
+LABEL org.opencontainers.image.version="${VERSION}"
 
 COPY . .
-RUN python3 -m pip install . \
- && rm -rv /k8s-manager \
- && rm -rv "/usr/local/lib/python$(python3 --version 2>&1 | awk '{print $2}' | cut -d '.' -f 1,2)/dist-packages/tests" \
- && rm -rv /root/.cache
+RUN sed -i "s/^version = .*/version = \"${VERSION:-0.15}\"/" pyproject.toml
+
+RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
+    uv pip install --system --group docker \
+&& uv build --sdist \
+&& uv pip install --system "dist/pygeoapi_k8s_manager-${VERSION}.tar.gz" \
+&& rm -v /tmp/uv-*.lock \
+&& rm -rv /k8s-manager \
+&& rm -rv /root/.cache
 
 WORKDIR /pygeoapi
-
-ARG VERSION=0.15
-LABEL org.opencontainers.image.version="${VERSION}"
 
 ARG GIT_COMMIT=commit-undefined
 LABEL org.opencontainers.image.revision="${GIT_COMMIT}"

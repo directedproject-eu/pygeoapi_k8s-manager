@@ -36,8 +36,8 @@ from dataclasses import dataclass
 
 from kubernetes import client as k8s_client
 
-from pygeoapi_kubernetes_manager.manager import KubernetesProcessor
-from pygeoapi_kubernetes_manager.util import ProcessorClientError
+from pygeoapi_k8s_manager.manager import KubernetesProcessor
+from pygeoapi_k8s_manager.util import ProcessorClientError
 
 LOGGER = logging.getLogger(__name__)
 

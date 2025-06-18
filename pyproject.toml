@@ -1,18 +1,35 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "pygeoapi_k8s_manager"
-version = "0.1.0"
-authors = [{ name = "52N authors", email = "info@52north.org" }]
-description = "pygeoapi_k8s_manager"
+name = "pygeoapi-k8s-manager"
+version = "0.17"
+description = "Add your description here"
 readme = "README.md"
 license = { text = "Apache Software License 2.0"}
-dynamic = ["dependencies"]
+authors = [
+    { name = "EHJ-52n", email = "e.h.juerrens@52north.org" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "boto3>=1.38.37",
+    "botocore>=1.38.37",
+    "filelock>=3",
+    "kubernetes>=31,<32",
+    "pygeoapi==0.20.0",
+]
 
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["."]
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.11.13",
+    "time-machine>=2.16.0",
+]
+docker = [
+    "boto3>=1.38.37",
+    "botocore>=1.38.37",
+    "filelock>=3",
+    "kubernetes>=31,<32",
+]

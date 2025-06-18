@@ -51,7 +51,7 @@ It is implemented in the `finalizer.py` module in the class `KubernetesFinalizer
 ```yaml
 server:
   manager:
-    name: pygeoapi_kubernetes_manager.manager.KubernetesManager
+    name: pygeoapi_k8s_manager.manager.KubernetesManager
     finalizer_controller: true
 ```
 
@@ -78,11 +78,17 @@ This will result in k8s resources **not being deleted, which requires manual int
 
 ## Development
 
-Create python venv to develop via `python -m venv --prompt pygeoapi-k8s-manager .venv`
+We are using [uv](https://docs.astral.sh/uv/) to manage the project.
 
 You can use a kind based k8s cluster for testing.
 [Install kind following the according instructions](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
 The project specific kind set-up is outlined in [/k8s-kind/](./k8s-kind/README.md).
+
+### Dependency Management with uv
+
+- Add normal dependency: `uv add dependency`
+- Add `dev` dependency: `uv add --dev dependency`
+- Add `docker` dependency: `uv add --group docker dependency`
 
 ### Debugging with vscode
 
@@ -95,7 +101,7 @@ For debugging, only the minio set-up is required.
 **Build** the latest container image with docker using the following command:
 
 ```shell
-VERSION=0.15 \
+VERSION=0.17 \
 REGISTRY=docker.io \
 IMAGE=52north/pygeoapi-k8s-manager \
 ; \
@@ -183,7 +189,7 @@ curl -X 'POST' \
 Install test requirements in local env via:
 
 ```shell
-pip install --upgrade -r requirements-dev.txt
+uv pip install --group dev
 ```
 
 ## License

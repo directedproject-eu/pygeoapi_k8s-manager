@@ -40,8 +40,8 @@ from kubernetes.client import (
     V1PodStatus,
 )
 
-from pygeoapi_kubernetes_manager.finalizer import KubernetesFinalizerController
-from pygeoapi_kubernetes_manager.util import format_log_finalizer
+from pygeoapi_k8s_manager.finalizer import KubernetesFinalizerController
+from pygeoapi_k8s_manager.util import format_log_finalizer
 
 
 @pytest.fixture()
@@ -108,7 +108,7 @@ def test_kubernetes_finalizer_handle_job_ended_event_removes_finalizer_if_no_log
     finalizer.is_upload_logs_to_s3 = False
 
     with patch(
-        "pygeoapi_kubernetes_manager.finalizer.KubernetesFinalizerController.upload_logs_to_s3"
+        "pygeoapi_k8s_manager.finalizer.KubernetesFinalizerController.upload_logs_to_s3"
     ) as mocked_upload_logs_to_s3:
         finalizer.handle_job_ended_event(
             k8s_core_api=k8s_core_api,

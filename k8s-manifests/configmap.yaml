@@ -27,7 +27,7 @@ data:
         url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
       manager:
-        name: pygeoapi_kubernetes_manager.KubernetesManager
+        name: pygeoapi_k8s_manager.KubernetesManager
         logging:
           kubernetes: INFO
         # enable k8s finalizer controller
@@ -82,11 +82,11 @@ data:
       hello-world-k8s:
         type: process
         processor:
-          name: pygeoapi_kubernetes_manager.process.HelloWorldK8sProcessor
+          name: pygeoapi_k8s_manager.process.HelloWorldK8sProcessor
       generic-image-processor-example:
         type: process
         processor:
-          name: pygeoapi_kubernetes_manager.process.GenericImageProcessor
+          name: pygeoapi_k8s_manager.process.GenericImageProcessor
           metadata:
             version: 0.1
             id: generic-image-processor-example
@@ -105,7 +105,7 @@ data:
               - type: text/html
                 rel: about
                 title: Processor Code Repository
-                href: https://github.com/52North/pygeoapi_k8s-manager/tree/main/pygeoapi_kubernetes_manager/process/generic_image.py
+                href: https://github.com/52North/pygeoapi_k8s-manager/tree/main/src/pygeoapi_k8s_manager/process/generic_image.py
                 hreflang: en-UK
             inputs:
               token:

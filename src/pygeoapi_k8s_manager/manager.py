@@ -376,7 +376,7 @@ class KubernetesManager(BaseManager):
 
         LOGGER.debug(f"Trying to create job in namespace '{self.namespace}': '{job}")
         created_job = self.batch_v1.create_namespaced_job(body=job, namespace=self.namespace)
-        LOGGER.info(f"Created job '{created_job.metadata.name}' in ns {self.namespace}")
+        LOGGER.info(f"Created job '{created_job.metadata.name}' in ns '{self.namespace}'")
         return ("application/json", {}, JobStatus.accepted)
 
     def _check_auth_token(self, data_dict: dict):

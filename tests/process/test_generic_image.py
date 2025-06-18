@@ -28,7 +28,7 @@
 # =================================================================
 import pytest
 
-from pygeoapi_kubernetes_manager.process import GenericImageProcessor
+from pygeoapi_k8s_manager.process import GenericImageProcessor
 
 
 @pytest.fixture()
@@ -56,7 +56,7 @@ def processor() -> GenericImageProcessor:
                         "type": "text/html",
                         "rel": "about",
                         "title": "repository",
-                        "href": "https://github.com/52North/pygeoapi_k8s-manager/tree/main/pygeoapi_kubernetes_manager/process/generic_image.py",  # noqa: E501
+                        "href": "https://github.com/52North/pygeoapi_k8s-manager/tree/main/src/pygeoapi_k8s_manager/process/generic_image.py",  # noqa: E501
                         "hreflang": "en-UK",
                     }
                 ],
@@ -157,7 +157,7 @@ def test_processor_def_is_parsed(processor):
         "type": "text/html",
         "rel": "about",
         "title": "repository",
-        "href": "https://github.com/52North/pygeoapi_k8s-manager/tree/main/pygeoapi_kubernetes_manager/process/generic_image.py",  # noqa: E501
+        "href": "https://github.com/52North/pygeoapi_k8s-manager/tree/main/src/pygeoapi_k8s_manager/process/generic_image.py",  # noqa: E501
         "hreflang": "en-UK",
     }
     assert len(meta["inputs"]) == 1

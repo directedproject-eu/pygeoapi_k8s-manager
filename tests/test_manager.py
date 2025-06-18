@@ -60,7 +60,7 @@ from kubernetes.client import (
 )
 from pygeoapi.process.base import BaseProcessor, JobNotFoundError, JobResultNotFoundError, ProcessorExecuteError
 
-from pygeoapi_kubernetes_manager.manager import (
+from pygeoapi_k8s_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
     add_job_id_env,
@@ -69,7 +69,7 @@ from pygeoapi_kubernetes_manager.manager import (
     job_from_k8s,
     job_message,
 )
-from pygeoapi_kubernetes_manager.util import format_annotation_key, format_job_name, format_log_finalizer
+from pygeoapi_k8s_manager.util import format_annotation_key, format_job_name, format_log_finalizer
 
 
 @pytest.fixture
@@ -88,14 +88,14 @@ def k8s_job_1(process_id):
         metadata=V1ObjectMeta(
             name=format_job_name("test-1"),
             annotations={
-                format_annotation_key("started"): "2025-01-12T13:39:03.000000Z",
+                format_annotation_key("started"): "2025-01-12T13:39:03+00:00",
                 format_annotation_key("identifier"): "identifier-1",
                 format_annotation_key("process_id"): process_id,
             },
         ),
         status=V1JobStatus(
             succeeded=1,
-            completion_time=datetime.datetime.fromisoformat("2025-01-12T13:42:03.000000Z"),
+            completion_time=datetime.datetime.fromisoformat("2025-01-12T13:42:03+00:00"),
         ),
         spec=V1JobSpec(
             selector=V1LabelSelector(match_labels={"test-key-1": "test-value-1"}),
@@ -110,14 +110,14 @@ def k8s_job_2(process_id):
         metadata=V1ObjectMeta(
             name=format_job_name("test-2"),
             annotations={
-                format_annotation_key("started"): "2025-01-19T15:42:01.000000Z",
+                format_annotation_key("started"): "2025-01-19T15:42:01+00:00",
                 format_annotation_key("identifier"): "identifier-2",
                 format_annotation_key("process_id"): process_id,
             },
         ),
         status=V1JobStatus(
             succeeded=1,
-            completion_time=datetime.datetime.fromisoformat("2025-01-19T15:52:01.000000Z"),
+            completion_time=datetime.datetime.fromisoformat("2025-01-19T15:52:01+00:00"),
         ),
         spec=V1JobSpec(
             selector=V1LabelSelector(match_labels={"test-key-2": "test-value-2"}),
@@ -132,7 +132,7 @@ def k8s_job_3_failed(process_id):
         metadata=V1ObjectMeta(
             name=format_job_name("test-3"),
             annotations={
-                format_annotation_key("started"): "2025-01-02T15:42:01.000000Z",
+                format_annotation_key("started"): "2025-01-02T15:42:01+00:00",
                 format_annotation_key("identifier"): "identifier-3",
                 format_annotation_key("process_id"): process_id,
             },
@@ -143,12 +143,12 @@ def k8s_job_3_failed(process_id):
             active=0,
             conditions=[
                 V1JobCondition(
-                    last_transition_time=datetime.datetime.fromisoformat("2025-01-02T15:45:01.000000Z"),
+                    last_transition_time=datetime.datetime.fromisoformat("2025-01-02T15:45:01+00:00"),
                     type="Failed",
                     status="True",
                 ),
                 V1JobCondition(
-                    last_transition_time=datetime.datetime.fromisoformat("2025-01-02T15:48:01.000000Z"),
+                    last_transition_time=datetime.datetime.fromisoformat("2025-01-02T15:48:01+00:00"),
                     type="Failed",
                     status="True",
                 ),
@@ -163,7 +163,7 @@ def k8s_job_4_events():
         metadata=V1ObjectMeta(
             name=format_job_name("test-4"),
             annotations={
-                format_annotation_key("job-start-datetime"): "2025-01-19T15:42:01.000000Z",
+                format_annotation_key("job-start-datetime"): "2025-01-19T15:42:01+00:00",
                 format_annotation_key("identifier"): "identifier-4",
                 format_annotation_key("process_id"): process_id,
             },
@@ -172,7 +172,7 @@ def k8s_job_4_events():
             succeeded=0,
             failed=0,
             active=0,
-            completion_time=datetime.datetime.now(datetime.UTC),
+            completion_time=datetime.datetime.now(tz=datetime.timezone.utc),
         ),
     )
 
@@ -200,8 +200,8 @@ def test_manager_get_jobs(manager, k8s_job_list, k8s_pod_list, process_id):
     # The jobs are ordered in reverse by completion time by get_jobs()
     # test job #1
     job_1 = jobs["jobs"][0]
-    assert job_1["started"] == "2025-01-19T15:42:01.000000Z"
-    assert job_1["created"] == "2025-01-19T15:42:01.000000Z"
+    assert job_1["started"] == "2025-01-19T15:42:01+00:00"
+    assert job_1["created"] == "2025-01-19T15:42:01+00:00"
     assert job_1["progress"] == "100"
     assert job_1["status"] == "successful"
     assert job_1["identifier"] == "identifier-2"
@@ -212,8 +212,8 @@ def test_manager_get_jobs(manager, k8s_job_list, k8s_pod_list, process_id):
 
     # test job #2
     job_2 = jobs["jobs"][1]
-    assert job_2["created"] == "2025-01-12T13:39:03.000000Z"
-    assert job_2["started"] == "2025-01-12T13:39:03.000000Z"
+    assert job_2["created"] == "2025-01-12T13:39:03+00:00"
+    assert job_2["started"] == "2025-01-12T13:39:03+00:00"
     assert job_2["progress"] == "100"
     assert job_2["status"] == "successful"
     assert job_2["identifier"] == "identifier-1"
@@ -236,8 +236,8 @@ def test_manager_get_jobs_offset(manager, k8s_job_list, k8s_pod_list, process_id
     # The jobs are ordered in reverse by completion time by get_jobs()
     # test job #1, which is #2 from the fixture
     job_1 = jobs["jobs"][0]
-    assert job_1["created"] == "2025-01-12T13:39:03.000000Z"
-    assert job_1["started"] == "2025-01-12T13:39:03.000000Z"
+    assert job_1["created"] == "2025-01-12T13:39:03+00:00"
+    assert job_1["started"] == "2025-01-12T13:39:03+00:00"
     assert job_1["progress"] == "100"
     assert job_1["status"] == "successful"
     assert job_1["identifier"] == "identifier-1"
@@ -260,7 +260,7 @@ def test_manager_get_jobs_limit(manager, k8s_job_list, k8s_pod_list, process_id)
     # The jobs are ordered in reverse by completion time by get_jobs()
     # test job #1, which is #1 from the fixture
     job_1 = jobs["jobs"][0]
-    assert job_1["started"] == "2025-01-19T15:42:01.000000Z"
+    assert job_1["started"] == "2025-01-19T15:42:01+00:00"
     assert job_1["progress"] == "100"
     assert job_1["status"] == "successful"
     assert job_1["identifier"] == "identifier-2"
@@ -299,7 +299,7 @@ def test_manager_get_job_result_raises_error_on_absent_pod(manager, process_id):
                 "get_job",
                 return_value={"identifier": process_id, "status": "successful"},
             ),
-            patch("pygeoapi_kubernetes_manager.manager.pod_for_job_id", return_value=None),
+            patch("pygeoapi_k8s_manager.manager.pod_for_job_id", return_value=None),
         ):
             manager.get_job_result(process_id)
     assert error.type is JobResultNotFoundError
@@ -324,7 +324,7 @@ def test_manager_get_job_result_raises_error_on_absent_logs(manager, process_id,
                 return_value={"identifier": process_id, "status": "successful"},
             ),
             patch(
-                "pygeoapi_kubernetes_manager.manager.pod_for_job_id",
+                "pygeoapi_k8s_manager.manager.pod_for_job_id",
                 return_value=mocked_pod,
             ),
             patch.object(CoreV1Api, "read_namespaced_pod_log", return_value=None),
@@ -343,7 +343,7 @@ def test_manager_get_job_result_logs(manager, process_id, mocked_pod):
             return_value={"identifier": process_id, "status": "successful"},
         ),
         patch(
-            "pygeoapi_kubernetes_manager.manager.pod_for_job_id",
+            "pygeoapi_k8s_manager.manager.pod_for_job_id",
             return_value=mocked_pod,
         ),
         patch.object(CoreV1Api, "read_namespaced_pod_log", return_value=logs_expected),
@@ -395,7 +395,7 @@ def test_manager_does_not_add_tolerations_if_not_configured(minimal_job_spec):
 
 
 def test_get_completion_time_failed_job(k8s_job_3_failed):
-    assert get_completion_time(k8s_job_3_failed) == datetime.datetime.fromisoformat("2025-01-02T15:48:01.000000Z")
+    assert get_completion_time(k8s_job_3_failed) == datetime.datetime.fromisoformat("2025-01-02T15:48:01+00:00")
 
 
 @pytest.fixture
@@ -497,14 +497,14 @@ def k8s_job_without_mimetype_annotation(process_id):
         metadata=V1ObjectMeta(
             name=format_job_name("test-2"),
             annotations={
-                format_annotation_key("started"): "2025-01-19T15:42:01.000000Z",
+                format_annotation_key("started"): "2025-01-19T15:42:01+00:00",
                 format_annotation_key("identifier"): "identifier-2",
                 format_annotation_key("process_id"): process_id,
             },
         ),
         status=V1JobStatus(
             succeeded=1,
-            completion_time=datetime.datetime.fromisoformat("2025-01-19T15:52:01.000000Z"),
+            completion_time=datetime.datetime.fromisoformat("2025-01-19T15:52:01+00:00"),
         ),
         spec=V1JobSpec(
             selector=V1LabelSelector(match_labels={"test-key-2": "test-value-2"}),

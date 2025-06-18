@@ -39,7 +39,7 @@ import time_machine
 from kubernetes.client.models.v1_job_status import V1JobStatus
 from pygeoapi.util import JobStatus
 
-from pygeoapi_kubernetes_manager.util import (
+from pygeoapi_k8s_manager.util import (
     current_namespace,
     format_annotation_key,
     format_job_name,
@@ -81,7 +81,7 @@ def test_parse_annotation_key_parse_None_throws_Error():
     with pytest.raises(TypeError) as error:
         parse_annotation_key(None)
     assert error.type is TypeError
-    assert error.match("expected string or bytes-like object, got 'NoneType'")
+    assert error.match("expected string or bytes-like object")
 
 
 def test_current_namespace():
