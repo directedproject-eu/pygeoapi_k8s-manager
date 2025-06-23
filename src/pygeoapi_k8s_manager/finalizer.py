@@ -152,12 +152,15 @@ class KubernetesFinalizerController:
         self,
         job: V1Job,
         k8s_core_api: CoreV1Api | None = None,
+        k8s_batch_api: BatchV1Api | None = None,
     ) -> None:
         LOGGER.debug(
             f"{'Completed ' if job.status.completion_time else 'Failed'} Job '{job.metadata.name}' with matching finalizer '{self.finalizer_id}'"
         )
         if k8s_core_api is None:
             k8s_core_api = CoreV1Api()
+        if k8s_batch_api is None:
+            k8s_batch_api = BatchV1Api()
         pods = k8s_core_api.list_namespaced_pod(
             namespace=self.namespace, label_selector=f"job-name={job.metadata.name}"
         )
@@ -171,10 +174,11 @@ class KubernetesFinalizerController:
         if logs is None or len(logs) == 0:
             # TODO what todo now? skip removing finalizer? skip uploading
             LOGGER.error(f"Could not retrieve logs for pod '{pod.name}'")
-        elif self.is_upload_logs_to_s3:
-            self.upload_logs_to_s3(self.get_job_name_from(pod), logs)
+        else:
             # TODO: document results
-            self.add_result_annotations_to_job(job, logs, k8s_core_api)
+            self.add_result_annotations_to_job(job, logs, k8s_batch_api)
+            if self.is_upload_logs_to_s3:
+                self.upload_logs_to_s3(self.get_job_name_from(pod), logs)
         self.remove_finalizer(pod, k8s_core_api)
 
     def remove_finalizer(self, pod: V1Pod, k8s_core_api: CoreV1Api | None = None) -> None:
@@ -194,34 +198,35 @@ class KubernetesFinalizerController:
             f"Removed finalizer from pod '{patched_pod.metadata.name}' with HTTP status '{status}'. Finalizer: '{patched_pod.metadata.finalizers}' (None is good!)"
         )
 
-    def add_result_annotations_to_job(self, job: V1Job, logs: str, k8s_core_api: CoreV1Api | None = None) -> None:
-        if k8s_core_api is None:
-            k8s_core_api = CoreV1Api()
-        annotations = job.metadata.annotations if job.metadata.annotations else []
+    def add_result_annotations_to_job(self, job: V1Job, logs: str, k8s_batch_api: BatchV1Api | None = None) -> None:
+        if k8s_batch_api is None:
+            k8s_batch_api = BatchV1Api()
+        annotations = job.metadata.annotations if job.metadata.annotations else {}
         annotations.update(
             {
                 format_annotation_key("result-mimetype"): next(
                     (
-                        line.split(":", 1)[1].strip()
+                        line.split("PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE:")[1].strip()
                         for line in logs.split("\n")
-                        if line.startswith("PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE")
+                        if "PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE" in line
                     ),
                     None,
                 )
             }
         )
         lines = logs.splitlines()
+        result_value_start_index = next(
+            (i for i, line in enumerate(lines) if "PYGEOAPI_K8S_MANAGER_RESULT_START" in line), None
+        )
         annotations.update(
             {
                 format_annotation_key("result-value"): "".join(
-                    lines[lines.index("PYGEOAPI_K8S_MANAGER_RESULT_START") + 1 :]
-                    if "PYGEOAPI_K8S_MANAGER_RESULT_START" in lines
-                    else []
+                    line.strip() for line in (lines[result_value_start_index + 1 :] if result_value_start_index else [])
                 )
             }
         )
         body = {"metadata": {"annotations": annotations}}
-        (patched_pod, status, _) = BatchV1Api().patch_namespaced_job_with_http_info(
+        (patched_pod, status, _) = k8s_batch_api.patch_namespaced_job_with_http_info(
             name=job.metadata.name, namespace=self.namespace, body=body
         )
         LOGGER.debug(f"Added result annotations to job '{patched_pod.metadata.name}': Status: '{status}'")

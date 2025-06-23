@@ -236,3 +236,42 @@ def test_has_job_ended(finalizer):
     ended_job.status.completion_time = None
     ended_job.status.failed = 1
     assert finalizer.has_job_ended(ended_job, "MODIFIED")
+
+
+def test_add_result_annotations_to_job(finalizer):
+    patched_pod = MagicMock()
+    patched_pod.metadata.name = "I am a patched pod"
+    status = 200
+    k8s_batch_api = MagicMock()
+    k8s_batch_api.patch_namespaced_job_with_http_info.return_value = (patched_pod, status, None)
+    k8s_job = MagicMock()
+    k8s_job.metadata.annotations = None
+    test_name = "test-name"
+    k8s_job.metadata.name = test_name
+    test_result_mimetype = "application/json"
+    logs = f"""
+[2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'ADDED' with object job 'howis-ingest-29178065' received
+[2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+[2025-06-23T13:05:11Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+[2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+[2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE:{test_result_mimetype}
+[2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_START
+{{
+    "id": "pygeoapi-test-process-id",
+    "value": "result-value"
+}}
+"""
+    finalizer.add_result_annotations_to_job(k8s_job, logs, k8s_batch_api)
+
+    k8s_batch_api.patch_namespaced_job_with_http_info.assert_called_once_with(
+        name=test_name,
+        namespace="default",
+        body={
+            "metadata": {
+                "annotations": {
+                    "pygeoapi.io/result-mimetype": "application/json",
+                    "pygeoapi.io/result-value": '{"id": "pygeoapi-test-process-id","value": "result-value"}',
+                }
+            }
+        },
+    )
