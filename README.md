@@ -2,7 +2,6 @@
 
 Extends [pygeoapi](https://pygeoapi.io/) by a manager for kubernetes jobs and a process to execute any container image on a cluster.
 
-
 ## Usage
 
 ### GenericImageProcessor
@@ -45,6 +44,35 @@ kubectl create secret generic -n default k8s-job-manager --from-literal=token=$(
 The manager comes with an built-in [k8s finalizer](https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/) controller to handle the logs of the jobs and persist them in an s3 bucket.
 The according configuration requires the following environment variables and activation in the pygeoapi configuration.
 It is implemented in the `finalizer.py` module in the class `KubernetesFinalizerController`.
+In addition, this finalizer is used to persist the result mimetype and value.
+The logs are parsed during finalizing.
+The result mimetype is parsed from log statements with the marker: `PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE`.
+The according log line must contain this and split the mimetype with `:`, e.g. `[2025-06-23T13:00:18Z | pygeoapi_k8s_manager.process.generic_image::result_logging.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE: application/json`.
+The result value MUST be provided after a log statement with the marker `PYGEOAPI_K8S_MANAGER_RESULT_START`, e.g. parsing the following snippet results in the given result:
+
+- *Log Snippet*
+
+  ```plain
+  [2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'ADDED' with object job 'howis-ingest-29178065' received
+  [2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+  [2025-06-23T13:05:11Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
+  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE:application/json
+  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_START
+  {
+      "id": "pygeoapi-test-process-id",
+      "value": "result-value"
+  }
+  ```
+
+- *Parsed Result Value*
+
+  ```json
+  {
+      "id": "pygeoapi-test-process-id",
+      "value": "result-value"
+  }
+  ```
 
 **pygeoapi configuration snippet**:
 
@@ -89,6 +117,8 @@ The project specific kind set-up is outlined in [/k8s-kind/](./k8s-kind/README.m
 - Add normal dependency: `uv add dependency`
 - Add `dev` dependency: `uv add --dev dependency`
 - Add `docker` dependency: `uv add --group docker dependency`
+
+The docker dependency group is used during building the docker image, which is based on pygeoapi, hence no pygeoapi package needs to be installed.
 
 ### Debugging with vscode
 
