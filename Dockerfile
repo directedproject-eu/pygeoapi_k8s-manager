@@ -21,7 +21,7 @@ RUN apt-get update \
 
 WORKDIR /k8s-manager
 
-ARG VERSION=0.19
+ARG VERSION=0.20
 LABEL org.opencontainers.image.version="${VERSION}"
 
 COPY . .

@@ -415,7 +415,7 @@ def create_job_body(p: KubernetesProcessor, job_id: str, data_dict: dict, add_fi
     if p.tolerations is not None and len(p.tolerations) > 0:
         job_pod_spec = p._add_tolerations(job_pod_spec)
 
-    job_pod_spec.pod_spec = add_job_id_env(job_pod_spec.pod_spec, job_id)
+    job_pod_spec.pod_spec = add_metadata_env(job_pod_spec.pod_spec, job_id, p.metadata.get("id"))
 
     now = now_str()
     annotations = {
@@ -449,22 +449,27 @@ def create_job_body(p: KubernetesProcessor, job_id: str, data_dict: dict, add_fi
     )
 
 
-def add_job_id_env(pod_spec: V1PodSpec, job_id: str) -> V1PodSpec:
-    def add_job_id_to_container_env(container: V1Container, job_id: str) -> None:
+def add_metadata_env(pod_spec: V1PodSpec, job_id: str, process_id: str) -> V1PodSpec:
+    def add_metadata_to_container_env(container: V1Container, job_id: str, process_id: str) -> None:
         if container.env is None:
             container.env = []
         container.env.append(
             V1EnvVar(
                 name="PYGEOAPI_JOB_ID",
                 value=job_id,
-            )
+            ),
+        )
+        container.env.append(V1EnvVar(
+                name="PYGEOAPI_PROCESS_ID",
+                value=process_id,
+            ),
         )
 
     for container in pod_spec.containers:
-        add_job_id_to_container_env(container, job_id)
+        add_metadata_to_container_env(container, job_id, process_id)
     if pod_spec.init_containers is not None:
         for container in pod_spec.init_containers:
-            add_job_id_to_container_env(container, job_id)
+            add_metadata_to_container_env(container, job_id, process_id)
     return pod_spec
 
 

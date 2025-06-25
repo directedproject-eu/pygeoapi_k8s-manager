@@ -63,7 +63,7 @@ from pygeoapi.process.base import BaseProcessor, JobNotFoundError, JobResultNotF
 from pygeoapi_k8s_manager.manager import (
     KubernetesManager,
     KubernetesProcessor,
-    add_job_id_env,
+    add_metadata_env,
     create_job_body,
     get_completion_time,
     job_from_k8s,
@@ -558,15 +558,20 @@ class KubernetesProcessorForTesting(KubernetesProcessor):
         return KubernetesProcessor.JobPodSpec(V1PodSpec(containers=[V1Container(name="test-container")]), {})
 
 
-def test_create_job_body_sets_tolerations(process_id, job_id, toleration):
-    p = KubernetesProcessorForTesting(
-        {
-            "name": process_id,
-            "tolerations": [toleration],
+@pytest.fixture()
+def testing_processor(process_id, toleration) -> KubernetesProcessorForTesting:
+    return KubernetesProcessorForTesting({
+            "name": "test-processor-name",
+            "tolerations": [toleration]
         },
-        {},
+        {
+            "id": process_id,
+        },
     )
-    job = create_job_body(p, job_id, {}, False)
+
+
+def test_create_job_body_sets_tolerations(testing_processor, job_id):
+    job = create_job_body(testing_processor, job_id, {}, False)
 
     tolerations = job.spec.template.spec.tolerations
     assert tolerations is not None
@@ -580,18 +585,13 @@ def test_create_job_body_sets_tolerations(process_id, job_id, toleration):
     assert tolerations[0].effect == "NoSchedule"
 
 
-@pytest.fixture()
-def testing_processor() -> KubernetesProcessorForTesting:
-    return KubernetesProcessorForTesting({"name": process_id}, {})
-
-
 def test_create_job_body_sets_finalizer(testing_processor, job_id):
     job = create_job_body(testing_processor, job_id, {}, True)
 
     assert job.spec.template.metadata.finalizers == [format_log_finalizer()]
 
 
-def test_create_job_body_set_defaults(testing_processor, job_id):
+def test_create_job_body_set_defaults(testing_processor, job_id, process_id):
     job = create_job_body(testing_processor, job_id, {}, False)
 
     assert job.api_version == "batch/v1"
@@ -600,9 +600,11 @@ def test_create_job_body_set_defaults(testing_processor, job_id):
     assert job.spec.backoff_limit == 0
     assert job.spec.ttl_seconds_after_finished == 60 * 60 * 24 * 100
 
-    assert len(job.spec.template.spec.containers[0].env) == 1
+    assert len(job.spec.template.spec.containers[0].env) == 2
     assert job.spec.template.spec.containers[0].env[0].name == "PYGEOAPI_JOB_ID"
     assert job.spec.template.spec.containers[0].env[0].value == job_id
+    assert job.spec.template.spec.containers[0].env[1].name == "PYGEOAPI_PROCESS_ID"
+    assert job.spec.template.spec.containers[0].env[1].value == process_id
 
 
 def test_check_auth(testing_processor, process_id):
@@ -621,24 +623,32 @@ def test_check_auth(testing_processor, process_id):
     assert not testing_processor.check_auth()
 
 
-def test_add_job_id_env():
+def test_add_metadata_env(process_id):
     pod_spec = V1PodSpec(
         containers=[V1Container(name="container-0"), V1Container(name="container-1")],
         init_containers=[V1Container(name="init-container-0"), V1Container(name="init.container-1")],
     )
 
     test_job_id = "test-job-id"
-    adjusted_pod_spec = add_job_id_env(pod_spec, test_job_id)
+    adjusted_pod_spec = add_metadata_env(pod_spec, test_job_id, process_id)
 
     assert adjusted_pod_spec.containers[0].env[0].name == "PYGEOAPI_JOB_ID"
     assert adjusted_pod_spec.containers[0].env[0].value == test_job_id
     assert adjusted_pod_spec.containers[1].env[0].name == "PYGEOAPI_JOB_ID"
     assert adjusted_pod_spec.containers[1].env[0].value == test_job_id
+    assert adjusted_pod_spec.containers[0].env[1].name == "PYGEOAPI_PROCESS_ID"
+    assert adjusted_pod_spec.containers[0].env[1].value == process_id
+    assert adjusted_pod_spec.containers[1].env[1].name == "PYGEOAPI_PROCESS_ID"
+    assert adjusted_pod_spec.containers[1].env[1].value == process_id
 
     assert adjusted_pod_spec.init_containers[0].env[0].name == "PYGEOAPI_JOB_ID"
     assert adjusted_pod_spec.init_containers[0].env[0].value == test_job_id
     assert adjusted_pod_spec.init_containers[1].env[0].name == "PYGEOAPI_JOB_ID"
     assert adjusted_pod_spec.init_containers[1].env[0].value == test_job_id
+    assert adjusted_pod_spec.init_containers[0].env[1].name == "PYGEOAPI_PROCESS_ID"
+    assert adjusted_pod_spec.init_containers[0].env[1].value == process_id
+    assert adjusted_pod_spec.init_containers[1].env[1].name == "PYGEOAPI_PROCESS_ID"
+    assert adjusted_pod_spec.init_containers[1].env[1].value == process_id
 
 
 def test_non_kubernetes_processors_are_rejected(manager):
