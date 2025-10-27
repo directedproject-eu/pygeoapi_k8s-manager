@@ -236,6 +236,8 @@ docker run \
   -c "pip install --no-warn-script-location --no-cache-dir pip-licenses > /dev/null && /usr/local/bin/pip-licenses -f plain | grep -v pygeoapi-k8s-manager"
 ```
 
+The developments are based on [pygeoapi-kubernetes-papermill](https://github.com/eoxhub-workspaces/pygeoapi-kubernetes-papermill).
+
 ## Funding
 
 The development of the "pygeoapi - kubernetes manager" implementation was supported by several organizations and projects.

@@ -25,6 +25,10 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
+# Substantial parts of this file are based on pygeoapi-kubernetes-papermill
+# (https://github.com/eoxhub-workspaces/pygeoapi-kubernetes-papermill).
+# pygeoapi-kubernetes-papermill is copyrighted by EOX IT Services GmbH
+# (https://eox.at) and published under the MIT license.
 # =================================================================
 import json
 import logging
