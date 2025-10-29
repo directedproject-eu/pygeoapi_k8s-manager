@@ -53,14 +53,14 @@ The result value MUST be provided after a log statement with the marker `PYGEOAP
 - *Log Snippet*
 
   ```plain
-  [2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'ADDED' with object job 'howis-ingest-29178065' received
-  [2025-06-23T13:05:00Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
-  [2025-06-23T13:05:11Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
-  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'howis-ingest-29178065' received
-  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE:application/json
-  [2025-06-23T13:05:17Z | pygeoapi_kubernetes_manager.finalizer::finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_START
+  ...finalizer.py:97 | 14] DEBUG - Event 'ADDED' with object job 'ingest-29178065' received
+  ...finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'ingest-29178065' received
+  ...finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'ingest-29178065' received
+  ...finalizer.py:97 | 14] DEBUG - Event 'MODIFIED' with object job 'ingest-29178065' received
+  ...finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_MIMETYPE:application/json
+  ...finalizer.py:97 | 14] INFO - PYGEOAPI_K8S_MANAGER_RESULT_START
   {
-      "id": "pygeoapi-test-process-id",
+      "id": "pygeoapi-process-id",
       "value": "result-value"
   }
   ```
@@ -69,7 +69,7 @@ The result value MUST be provided after a log statement with the marker `PYGEOAP
 
   ```json
   {
-      "id": "pygeoapi-test-process-id",
+      "id": "pygeoapi-process-id",
       "value": "result-value"
   }
   ```
