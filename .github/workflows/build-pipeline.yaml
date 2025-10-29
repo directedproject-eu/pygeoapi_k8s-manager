@@ -145,15 +145,16 @@ jobs:
         severity: 'CRITICAL,HIGH'
     -
       if: ${{ hashFiles('trivy-results.txt') != '' }}
-      name: Upload to 52N slack
-      uses: MeilCli/slack-upload-file@v4
-      with:
-        slack_token: ${{ secrets.SLACK_TOKEN }}
-        file_path: trivy-results.txt
-        file_type: text/plain
-        title: trivy scan results of ${{ github.repository }}
-        channel_id: ${{ secrets.SLACK_CHANNEL_ID_52N }}
-        initial_comment: "Trivy Results for '${{ github.repository }}' uploaded. Please review: https://github.com/${{ github.repository }}/actions"
+      name: Send Trivy Results to Google Chat
+      env:
+        WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+        REPO_NAME: ${{ github.repository }}
+        REPO_URL: "https://github.com/${{ github.repository }}/actions"
+      run: |
+        CONTENT=$(cat trivy-results.txt | head -c 3800)
+        MESSAGE="Trivy Results for '${REPO_NAME}':\n\n\`\`\`\n${TRIVY_CONTENT}\n\`\`\`\n\n(Results truncated) Please review full report at: ${REPO_URL}"
+        JSON_PAYLOAD=$(jq -n --arg msg "$MESSAGE" '{text: $msg}')
+        curl -X POST -H 'Content-Type: application/json' "$WEBHOOK_URL" -d "$JSON_PAYLOAD"
     #
     # BEFORE ACTIVATING the deployment trigger, configure the according secrets
     # -
